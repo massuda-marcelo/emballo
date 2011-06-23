@@ -78,13 +78,14 @@ var
   Rec: PStrRec;
   P: Integer;
 begin
-  if FTypeKind = tkUString then
+  if (FTypeKind = tkUString) and not FByValue then
   begin
     P := PInteger(FAddress^)^;
     if P > 0 then
     begin
       Rec := PStrRec(P - SizeOf(StrRec));
-      Dec(Rec.refCnt);
+      if Rec.refCnt > 0 then
+        Dec(Rec.refCnt);
     end;
   end;
   inherited;

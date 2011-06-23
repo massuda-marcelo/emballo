@@ -40,10 +40,11 @@ type
     function IntegerResult: Integer; cdecl;
     function DoubleResult: Double; cdecl;
     procedure OutStringParameter(out S: String); cdecl;
+    procedure ConstStringParameter(const S: String); cdecl;
     function FunctionWithStringResult: String; cdecl;
   end;
 
-  TMethodImplTests_Cdecl = class(TTestCase)
+  TMethodImplTests_cdecl = class(TTestCase)
   private
     FRttiContext: TRttiContext;
     FRttiType: TRttiType;
@@ -58,32 +59,54 @@ type
     procedure TestDoubleResult;
     procedure TestOutStringParameter;
     procedure TestFunctionWithStringResult;
+    procedure TestConstStringParameter;
   end;
 
 implementation
 
-{ TMethodImplTests_Cdecl }
+{ TMethodImplTests_cdecl }
 
-function TMethodImplTests_Cdecl.GetMethod(const Name: String;
+function TMethodImplTests_cdecl.GetMethod(const Name: String;
   const InvokationHandler: TInvokationHandlerAnonMethod): TMethodImpl;
 begin
   Result := TMethodImpl.Create(FRttiContext, FRttiType.GetMethod(Name), InvokationHandler);
 end;
 
-procedure TMethodImplTests_Cdecl.SetUp;
+procedure TMethodImplTests_cdecl.SetUp;
 begin
   inherited;
   FRttiContext := TRttiContext.Create;
   FRttiType := FRttiContext.GetType(TTestClass);
 end;
 
-procedure TMethodImplTests_Cdecl.TearDown;
+procedure TMethodImplTests_cdecl.TearDown;
 begin
   inherited;
   FRttiContext.Free;
 end;
 
-procedure TMethodImplTests_Cdecl.TestDoubleResult;
+procedure TMethodImplTests_cdecl.TestConstStringParameter;
+var
+  MethodImpl: TMethodImpl;
+  M: procedure(const Str: String) of object; cdecl;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+begin
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Parameters: TArray<IParameter>; const Result: IParameter)
+  begin
+    CheckEquals('Test', Parameters[0].AsString);
+  end;
+
+  MethodImpl := GetMethod('ConstStringParameter', Invokationhandler);
+  try
+    TMethod(M).Code := MethodImpl.CodeAddress;
+    M('Test');
+  finally
+    MethodImpl.Free;
+  end;
+end;
+
+procedure TMethodImplTests_cdecl.TestDoubleResult;
 var
   MethodImpl: TMethodImpl;
   M: function: Double of object; cdecl;
@@ -107,7 +130,7 @@ begin
   end;
 end;
 
-procedure TMethodImplTests_Cdecl.TestFunctionWithStringResult;
+procedure TMethodImplTests_cdecl.TestFunctionWithStringResult;
 var
   MethodImpl: TMethodImpl;
   M: function: String of object; cdecl;
@@ -130,7 +153,7 @@ begin
   end;
 end;
 
-procedure TMethodImplTests_Cdecl.TestIntegerResult;
+procedure TMethodImplTests_cdecl.TestIntegerResult;
 var
   MethodImpl: TMethodImpl;
   M: function: Integer of object; cdecl;
@@ -153,7 +176,7 @@ begin
   end;
 end;
 
-procedure TMethodImplTests_Cdecl.TestOutStringParameter;
+procedure TMethodImplTests_cdecl.TestOutStringParameter;
 var
   MethodImpl: TMethodImpl;
   M: procedure(out S: String) of object; cdecl;
@@ -176,7 +199,7 @@ begin
   end;
 end;
 
-procedure TMethodImplTests_Cdecl.ConstParametersShouldBeReadOnly;
+procedure TMethodImplTests_cdecl.ConstParametersShouldBeReadOnly;
 var
   MethodImpl: TMethodImpl;
   M: procedure(const A: Double) of object; cdecl;
@@ -208,6 +231,11 @@ procedure TTestClass.ConstDoubleParam(const A: Double);
 begin
 end;
 
+procedure TTestClass.ConstStringParameter(const S: String);
+begin
+
+end;
+
 function TTestClass.DoubleResult: Double;
 begin
   Result := 0;
@@ -229,6 +257,6 @@ begin
 end;
 
 initialization
-RegisterTest('Emballo.DynamicProxy', TMethodImplTests_Cdecl.Suite);
+RegisterTest('Emballo.DynamicProxy', TMethodImplTests_cdecl.Suite);
 
 end.

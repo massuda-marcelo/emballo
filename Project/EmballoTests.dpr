@@ -34,6 +34,11 @@ program EmballoTests;
 
 uses
   FastMM4,
+  madExcept,
+  madLinkDisAsm,
+  madListHardware,
+  madListProcesses,
+  madListModules,
   Forms,
   TestFramework,
   GUITestRunner,

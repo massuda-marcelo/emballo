@@ -47,6 +47,7 @@
 			<DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
+			<DCC_MapFile>3</DCC_MapFile>
 			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
 			<DCC_BplOutput>..\Out\Debug</DCC_BplOutput>
 			<DCC_DependencyCheckOutputName>..\Out\Debug\Emballo.bpl</DCC_DependencyCheckOutputName>

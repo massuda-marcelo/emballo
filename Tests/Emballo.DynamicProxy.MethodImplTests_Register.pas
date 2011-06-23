@@ -40,6 +40,7 @@ type
     function IntegerResult: Integer; register;
     function DoubleResult: Double; register;
     procedure OutStringParameter(out S: String); register;
+    procedure ConstStringParameter(const S: String); register;
     function FunctionWithStringResult: String; register;
   end;
 
@@ -58,6 +59,7 @@ type
     procedure TestDoubleResult;
     procedure TestOutStringParameter;
     procedure TestFunctionWithStringResult;
+    procedure TestConstStringParameter;
   end;
 
 implementation
@@ -81,6 +83,27 @@ procedure TMethodImplTests_Register.TearDown;
 begin
   inherited;
   FRttiContext.Free;
+end;
+
+procedure TMethodImplTests_Register.TestConstStringParameter;
+var
+  MethodImpl: TMethodImpl;
+  M: procedure(const Str: String) of object; register;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+begin
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Parameters: TArray<IParameter>; const Result: IParameter)
+  begin
+    CheckEquals('Test', Parameters[0].AsString);
+  end;
+
+  MethodImpl := GetMethod('ConstStringParameter', Invokationhandler);
+  try
+    TMethod(M).Code := MethodImpl.CodeAddress;
+    M('Test');
+  finally
+    MethodImpl.Free;
+  end;
 end;
 
 procedure TMethodImplTests_Register.TestDoubleResult;
@@ -206,6 +229,11 @@ end;
 
 procedure TTestClass.ConstDoubleParam(const A: Double);
 begin
+end;
+
+procedure TTestClass.ConstStringParameter(const S: String);
+begin
+
 end;
 
 function TTestClass.DoubleResult: Double;

@@ -43,6 +43,8 @@ type
     procedure SetAsString(const Value: String);
     function GetAsBoolean: Boolean;
     procedure SetAsBoolean(Value: Boolean);
+    function GetAsDateTime: TDateTime;
+    procedure SetAsDateTime(Value: TDateTime);
   public
     { Address is the address on the stack where the value is.
       It ByValue = True, then this is the actual value. If ByValue = False,
@@ -113,6 +115,14 @@ begin
     Result := PByte(FAddress^)^;
 end;
 
+function TParameter.GetAsDateTime: TDateTime;
+begin
+  if FByValue then
+    Result := TDateTime(FAddress^)
+  else
+    REsult := PDateTime(FAddress^)^;
+end;
+
 function TParameter.GetAsDouble: Double;
 begin
   if FByValue then
@@ -147,6 +157,12 @@ procedure TParameter.SetAsByte(Value: Byte);
 begin
   CheckCanSetValue;
   PByte(FAddress^)^ := Value;
+end;
+
+procedure TParameter.SetAsDateTime(Value: TDateTime);
+begin
+  CheckCanSetValue;
+  PDateTime(FAddress^)^ := Value;
 end;
 
 procedure TParameter.SetAsDouble(Value: Double);

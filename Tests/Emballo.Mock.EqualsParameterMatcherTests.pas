@@ -51,6 +51,8 @@ type
     procedure SetAsDouble(Value: Double); virtual; abstract;
     procedure SetAsInteger(Value: Integer);
     procedure SetAsString(const Value: String); virtual; abstract;
+    function GetAsDateTime: TDateTime; virtual; abstract;
+    procedure SetAsDateTime(Value: TDateTime); virtual; abstract;
   public
     constructor Create(const Value: Integer);
   end;

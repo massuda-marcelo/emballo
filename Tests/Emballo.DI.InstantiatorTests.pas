@@ -36,12 +36,14 @@ type
   published
     procedure TestEnumConstructors;
     procedure TestInstantiate;
+    procedure TestInstantiateClassWithConstructorDependencies;
   end;
 
 implementation
 
 uses
-  Rtti;
+  Rtti,
+  Emballo.DI.Registry;
 
 type
   TTestClassA = class
@@ -59,11 +61,25 @@ type
     constructor Create(A: Integer);
   end;
 
+  IDependency = interface
+    ['{EF09895F-433F-4A0F-84B3-A974889EC2E1}']
+  end;
+
+  TDependencyImpl = class(TInterfacedObject, IDependency)
+
+  end;
+
+  TTestClassWithConstructorDependencies = class
+  public
+    constructor Create(const Dependency: IDependency);
+  end;
+
 { TInstantiatorTests }
 
 procedure TInstantiatorTests.SetUp;
 begin
   inherited;
+  RegisterFactory(IDependency, TDependencyImpl).Done;
   FInstantiator := TInstantiatorHack.Create;
 end;
 
@@ -71,6 +87,7 @@ procedure TInstantiatorTests.TearDown;
 begin
   inherited;
   FInstantiator.Free;
+  ClearRegistry;
 end;
 
 procedure TInstantiatorTests.TestEnumConstructors;
@@ -106,6 +123,18 @@ begin
   end;
 end;
 
+procedure TInstantiatorTests.TestInstantiateClassWithConstructorDependencies;
+var
+  Obj: TObject;
+begin
+  Obj := FInstantiator.Instantiate(TTestClassWithConstructorDependencies);
+  try
+    CheckEquals(TTestClassWithConstructorDependencies, Obj.ClassType, 'The returned instance should be of the requested class');
+  finally
+    Obj.Free;
+  end;
+end;
+
 { TTestClassA }
 
 constructor TTestClassA.AnotherConstructorFromA;
@@ -123,6 +152,14 @@ end;
 constructor TTestClassWithNoSuitableConstructor.Create(A: Integer);
 begin
   FA := A;
+end;
+
+{ TTestClassWithConstructorDependencies }
+
+constructor TTestClassWithConstructorDependencies.Create(
+  const Dependency: IDependency);
+begin
+
 end;
 
 initialization

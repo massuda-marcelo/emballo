@@ -19,6 +19,11 @@
 program Demo;
 
 uses
+  madExcept,
+  madLinkDisAsm,
+  madListHardware,
+  madListProcesses,
+  madListModules,
   Forms,
   Emballo.DI.Registry,
   UFrmMain in '..\Src\UFrmMain.pas' {FrmMain},

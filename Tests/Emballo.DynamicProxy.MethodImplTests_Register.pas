@@ -42,6 +42,7 @@ type
     procedure OutStringParameter(out S: String); register;
     procedure ConstStringParameter(const S: String); register;
     function FunctionWithStringResult: String; register;
+    function TDateTimeMethod(A: TDateTime; out B: TDateTime): TDateTime; register;
   end;
 
   TMethodImplTests_Register = class(TTestCase)
@@ -60,9 +61,13 @@ type
     procedure TestOutStringParameter;
     procedure TestFunctionWithStringResult;
     procedure TestConstStringParameter;
+    procedure TestTDateTime;
   end;
 
 implementation
+
+uses
+  DateUtils;
 
 { TMethodImplTests_Register }
 
@@ -199,6 +204,38 @@ begin
   end;
 end;
 
+procedure TMethodImplTests_Register.TestTDateTime;
+var
+  MethodImpl: TMethodImpl;
+  M: function(A: TDateTime; out B: TDateTime): TDateTime of object; register;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+  Aux: TDateTime;
+  ResultDateTime: TDateTime;
+begin
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Parameters: TArray<IParameter>; const Result: IParameter)
+  begin
+    try
+      CheckTrue(SameDateTime(Parameters[0].AsDateTime, EncodeDateTime(2011, 6, 24, 16, 3, 1, 2)));
+      Parameters[1].AsDateTime := EncodeDateTime(2011, 6, 24, 16, 5, 3, 4);
+      Result.AsDateTime := EncodeDateTime(2011, 6, 24, 16, 6, 5, 6);
+    except
+      on EParameterReadOnly do CheckTrue(True);
+    end;
+  end;
+
+  MethodImpl := GetMethod('TDateTimeMethod', InvokationHandler);
+  try
+    TMethod(M).Code := MethodImpl.CodeAddress;
+    ResultDateTime := M(EncodeDateTime(2011, 6, 24, 16, 3, 1, 2), Aux);
+
+    CheckTrue(SameDateTime(Aux, EncodeDateTime(2011, 6, 24, 16, 5, 3, 4)), 'Error returning TDateTime via out parameter');
+    CheckTrue(SameDateTime(ResultDateTime, EncodeDateTime(2011, 6, 24, 16, 6, 5, 6)), 'Error returning TDateTime via method result');
+  finally
+    MethodImpl.Free;
+  end;
+end;
+
 procedure TMethodImplTests_Register.ConstParametersShouldBeReadOnly;
 var
   MethodImpl: TMethodImpl;
@@ -252,6 +289,11 @@ begin
 end;
 
 procedure TTestClass.OutStringParameter(out S: String);
+begin
+
+end;
+
+function TTestClass.TDateTimeMethod(A: TDateTime; out B: TDateTime): TDateTime;
 begin
 
 end;

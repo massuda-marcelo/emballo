@@ -41,12 +41,15 @@ type
     procedure SetAsString(const Value: String);
     function GetAsBoolean: Boolean;
     procedure SetAsBoolean(Value: Boolean);
+    function GetAsDateTime: TDateTime;
+    procedure SetAsDateTime(Value: TDateTime);
 
     property AsByte: Byte read GetAsByte write SetAsByte;
     property AsInteger: Integer read GetAsInteger write SetAsInteger;
     property AsDouble: Double read GetAsDouble write SetAsDouble;
     property AsString: String read GetAsString write SetAsString;
     property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
+    property AsDateTime: TDateTime read GetAsDateTime write SetAsDateTime;
   end;
 
   TInvokationHandlerAnonMethod = reference to procedure(const Method: TRttiMethod;

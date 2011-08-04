@@ -188,7 +188,14 @@ begin
 
     ParamInstance := Factories[i].GetInstance;
     Supports(ParamInstance, GUID, TypedParamInstance);
-    TValue.Make(@TypedParamInstance, ParamType.Handle, Args[i]);
+    try
+      TValue.Make(@TypedParamInstance, ParamType.Handle, Args[i]);
+    finally
+      { The above "Supports" call AddRef'd the instance. As the variable is not
+        of an interface type, the compiler won't generate the apropriated
+        Release call, so we do it manualy }
+      IInterface(TypedParamInstance)._Release;
+    end;
   end;
 
   Instance := Ctor.Invoke(AClass, Args).AsObject;

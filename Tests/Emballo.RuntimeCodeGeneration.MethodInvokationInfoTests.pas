@@ -20,10 +20,15 @@ type
     procedure ProcedureWithStringOutParameterRegister(out X: String); register;
   end;
 
+  TDateTimeTestClass = class
+    function A(B: TDateTime; out C: TDateTime): TDateTime;
+  end;
+
   TMethodInvokationInfoTests = class(TTestCase)
   private
     FRttiContext: TRttiContext;
-    function GetInvokationInfo(const MethodName: String): TMethodInvokationInfo;
+    function GetInvokationInfo(const MethodName: String): TMethodInvokationInfo; overload;
+    function GetInvokationInfo(const TestClass: TClass; const MethodName: String): TMethodInvokationInfo; overload;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -36,6 +41,7 @@ type
     procedure FunctionThatReturnsAManagedTypeOnRegisterPassTheResultAsARightMostOutputParameter;
     procedure PrimitiveParametersAreAlwaysPassedByValue;
     procedure OutParametersArePassedByReference;
+    procedure TDateTimeTests;
   end;
 
 implementation
@@ -101,7 +107,13 @@ end;
 function TMethodInvokationInfoTests.GetInvokationInfo(
   const MethodName: String): TMethodInvokationInfo;
 begin
-  Result := TMethodInvokationInfo.Create(FRttiContext.GetType(TTestClass).GetMethod(MethodName));
+  Result := GetInvokationInfo(TTestClass, MethodName);
+end;
+
+function TMethodInvokationInfoTests.GetInvokationInfo(const TestClass: TClass;
+  const MethodName: String): TMethodInvokationInfo;
+begin
+  Result := TMethodInvokationInfo.Create(FRttiContext.GetType(TestClass).GetMethod(MethodName));
 end;
 
 procedure TMethodInvokationInfoTests.HasResultShouldReturnFalseIfTheMethodDoesntHaveAResultOrTrueIfItDoes;
@@ -253,10 +265,32 @@ begin
   end;
 end;
 
+procedure TMethodInvokationInfoTests.TDateTimeTests;
+var
+  InvokationInfo: TMethodInvokationInfo;
+  Info: TParamInfo;
+begin
+  InvokationInfo := GetInvokationInfo(TDateTimeTestClass, 'A');
+  try
+    CheckTrue(InvokationInfo.Params[0].Location = plStack);
+    CheckTrue(InvokationInfo.Params[1].Location = plEdx);
+    CheckTrue(InvokationInfo.ResultInfo.Location = plFloatingPointStack);
+  finally
+    InvokationInfo.Free;
+  end;
+end;
+
 procedure TMethodInvokationInfoTests.TearDown;
 begin
   inherited;
   FRttiContext.Free;
+end;
+
+{ TDateTimeTestClass }
+
+function TDateTimeTestClass.A(B: TDateTime; out C: TDateTime): TDateTime;
+begin
+  Result := 0;
 end;
 
 initialization

@@ -6,7 +6,7 @@ uses
   Rtti;
 
 type
-  TParamLocation = (plEax, plEdx, plEcx, plStack);
+  TParamLocation = (plEax, plEdx, plEcx, plStack, plFloatingPointStack);
 
   TParamKind = (pkImplicitArgument, pkResult);
 
@@ -42,7 +42,7 @@ type
 implementation
 
 uses
-  TypInfo;
+  TypInfo, Math;
 
 { TMethodInvokationInfo }
 
@@ -55,6 +55,17 @@ end;
 
 procedure TMethodInvokationInfo.GenerateParametersInfo(
   const Method: TRttiMethod);
+
+  function CountStackEntries(const ParamType: TRttiType): Integer;
+  begin
+    Result := Ceil(ParamType.TypeSize / SizeOf(Pointer));
+  end;
+
+  function IsRegister(const Location: TParamLocation): Boolean;
+  begin
+    Result := Location in [plEax, plEcx, plEdx];
+  end;
+
 var
   CurrentLocation: TParamLocation;
   CurrentStackOffset: Integer;
@@ -76,17 +87,22 @@ begin
 
   for i := 0 to High(FParams) do
   begin
-    FParams[i].Location := CurrentLocation;
-    if CurrentLocation in [plEax..plEcx] then
-      Inc(CurrentLocation);
+    FParams[i].ByValue := not (pfOut in Method.GetParameters[i].Flags);
+
+    if IsRegister(CurrentLocation) and (Method.GetParameters[i].ParamType.TypeSize > SizeOf(Pointer)) and FParams[i].ByValue then
+      FParams[i].Location := plStack
+    else
+    begin
+      FParams[i].Location := CurrentLocation;
+      if IsRegister(CurrentLocation) then
+        Inc(CurrentLocation);
+    end;
 
     if FParams[i].Location = plStack then
     begin
       FParams[i].StackOffset := CurrentStackOffset;
-      Inc(CurrentStackOffset, SizeOf(Integer));
+      Inc(CurrentStackOffset, CountStackEntries(Method.GetParameters[i].ParamType)*SizeOf(Pointer));
     end;
-
-    FParams[i].ByValue := not (pfOut in Method.GetParameters[i].Flags);
   end;
 end;
 
@@ -132,7 +148,10 @@ begin
   end
   else
   begin
-    FResultInfo.Location := plEax;
+    if Method.ReturnType.TypeKind = tkFloat then
+      FResultInfo.Location := plFloatingPointStack
+    else
+      FResultInfo.Location := plEax;
     FResultInfo.ByValue := True;
   end;
 end;

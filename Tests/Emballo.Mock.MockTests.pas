@@ -16,6 +16,7 @@ type
     procedure FooWithParameters(const A: Integer); virtual;
     procedure StringParameters(const S: String); virtual;
     function FooWithBooleanReturn: Boolean; virtual;
+
   end;
 
   ETestException = class(Exception)

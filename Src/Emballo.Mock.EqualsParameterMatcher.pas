@@ -49,6 +49,8 @@ function TEqualsParameterMatcher<T>.Match(const Value: IParameter): Boolean;
 begin
   if PTypeInfo(TypeInfo(T)).Kind = tkUString then
     Result := PString(@FValue)^ = Value.AsString
+  else if TypeInfo(T) = TypeInfo(TDateTime) then
+    Result := PDateTime(@FValue)^ = Value.AsDateTime
   else
     Result := PInteger(@FValue)^ = Value.AsInteger;
 end;

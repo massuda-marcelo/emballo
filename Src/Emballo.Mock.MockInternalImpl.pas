@@ -52,6 +52,7 @@ type
     function WillReturn(const Value: Integer): IWhen<T>; overload;
     function WillReturn(const Value: String): IWhen<T>; overload;
     function WillReturn(const Value: Boolean): IWhen<T>; overload;
+    function WillReturn(const Value: TDateTime): IWhen<T>; overload;
     function When: T;
   public
     constructor Create;
@@ -199,6 +200,11 @@ end;
 function TMockInternal<T>.WillReturn(const Value: Integer): IWhen<T>;
 begin
   Result := BeginExpectation(TReturnValueMethodAction<Integer>.Create(Value));
+end;
+
+function TMockInternal<T>.WillReturn(const Value: TDateTime): IWhen<T>;
+begin
+  Result := BeginExpectation(TReturnValueMethodAction<TDateTime>.Create(Value));
 end;
 
 end.

@@ -41,6 +41,7 @@ type
     function WillReturn(const Value: Integer): IWhen<T>; overload;
     function WillReturn(const Value: String): IWhen<T>; overload;
     function WillReturn(const Value: Boolean): IWhen<T>; overload;
+    function WillReturn(const Value: TDateTime): IWhen<T>; overload;
   end;
 
 implementation

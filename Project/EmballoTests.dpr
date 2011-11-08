@@ -32,6 +32,11 @@ program EmballoTests;
 {$APPTYPE CONSOLE}
 {$ENDIF}
 
+{ Ensures that there will be RTTI for interfaces in cases where such info
+  would be otherwise eliminated by the smart linker. See Barry Kelly's answer
+  on http://stackoverflow.com/questions/2997761/delphi-rtti-unable-to-find-interface }
+{$STRONGLINKTYPES ON}
+
 uses
   FastMM4,
   madExcept,
@@ -43,13 +48,6 @@ uses
   TestFramework,
   GUITestRunner,
   TextTestRunner,
-  Emballo.DI.InstantiatorTests in '..\Tests\Emballo.DI.InstantiatorTests.pas',
-  Emballo.DI.CoreTests in '..\Tests\Emballo.DI.CoreTests.pas',
-  Emballo.DI.PreBuiltFactoryTests in '..\Tests\Emballo.DI.PreBuiltFactoryTests.pas',
-  Emballo.DI.PoolFactoryTests in '..\Tests\Emballo.DI.PoolFactoryTests.pas',
-  Emballo.DI.DelegateFactory in '..\Tests\Emballo.DI.DelegateFactory.pas',
-  Emballo.DI.RegisterImplTests in '..\Tests\Emballo.DI.RegisterImplTests.pas',
-  Emballo.DI.StubFactory in '..\Tests\Emballo.DI.StubFactory.pas',
   Emballo.DynamicProxy.ImplTests in '..\Tests\Emballo.DynamicProxy.ImplTests.pas',
   Emballo.DllWrapper.ImplTests in '..\Tests\Emballo.DllWrapper.ImplTests.pas',
   Emballo.Hash.Md5AlgorithmTests in '..\Tests\Emballo.Hash.Md5AlgorithmTests.pas',
@@ -61,7 +59,9 @@ uses
   Emballo.DynamicProxy.MethodImplTests_Pascal in '..\Tests\Emballo.DynamicProxy.MethodImplTests_Pascal.pas',
   Emballo.DynamicProxy.MethodImplTests_Stdcall in '..\Tests\Emballo.DynamicProxy.MethodImplTests_Stdcall.pas',
   Emballo.DynamicProxy.MethodImplTests_Register in '..\Tests\Emballo.DynamicProxy.MethodImplTests_Register.pas',
-  Emballo.RuntimeCodeGeneration.MethodInvokationInfoTests in '..\Tests\Emballo.RuntimeCodeGeneration.MethodInvokationInfoTests.pas';
+  Emballo.RuntimeCodeGeneration.MethodInvokationInfoTests in '..\Tests\Emballo.RuntimeCodeGeneration.MethodInvokationInfoTests.pas',
+  Emballo.DITests in '..\Tests\Emballo.DITests.pas',
+  Emballo.DI.InjectorTests in '..\Tests\Emballo.DI.InjectorTests.pas';
 
 {$R *.RES}
 

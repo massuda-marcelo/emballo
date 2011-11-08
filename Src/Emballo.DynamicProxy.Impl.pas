@@ -28,7 +28,6 @@ uses
   Emballo.DynamicProxy.InvokationHandler,
   Emballo.DynamicProxy.MethodImpl,
   Emballo.RuntimeCodeGeneration.AsmBlock,
-//  Emballo.DI.Instantiator,
   Emballo.SynteticClass, classes;
 
 type
@@ -60,7 +59,6 @@ implementation
 
 uses
   SysUtils,
-//  Emballo.DI.AbstractFactory,
   Emballo.DynamicProxy.InvokationHandler.ParameterImpl,
   Emballo.RuntimeCodeGeneration.CallingConventions,
   Emballo.Rtti;
@@ -77,7 +75,6 @@ constructor TDynamicProxy.Create(const ParentClass: TClass;
 var
   i: Integer;
   LParentClass: TClass;
-  Instantiator: TInstantiator;
   ImplementedInterfacesGuids: TArray<TGUID>;
   IOffset: Integer;
   VTable: Pointer;
@@ -101,12 +98,7 @@ begin
   FSynteticClass := TSynteticClass.Create(LParentClass.ClassName, LParentClass,
     SizeOf(Pointer), ImplementedInterfacesGuids, True);
 
-//  Instantiator := TInstantiator.Create;
-//  try
-//    FProxyObject := Instantiator.Instantiate(FSynteticClass.Metaclass);
-//  finally
-//    Instantiator.Free;
-//  end;
+  FProxyObject := FSynteticClass.Metaclass.Create;
 
   SetAditionalData(FProxyObject, Self);
 

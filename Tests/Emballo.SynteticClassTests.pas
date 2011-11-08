@@ -40,6 +40,7 @@ type
     procedure InterfaceTableIOffsetShouldBeSetCorrectlyWhenClassHasAditionalData;
     procedure AccessToAditionalInstanceDataShouldNotCorruptTheObject;
     procedure FreeSynteticClassWhenInstanceIsFreedIfOptionIsSet;
+    procedure TestAditionalData;
   end;
 
 implementation
@@ -203,6 +204,28 @@ begin
   SynteticClass := TSynteticClass.Create('TSynteticSubClass', TBaseClass, 0, Guids, False);
   try
     CheckEquals(2, SynteticClass.Metaclass.GetInterfaceTable.EntryCount);
+  finally
+    SynteticClass.Free;
+  end;
+end;
+
+procedure TSynteticClassTests.TestAditionalData;
+var
+  SynteticClass: TSynteticClass;
+  Instance: TObject;
+  Value: Integer;
+begin
+  SynteticClass := TSynteticClass.Create('TSynteticSubClass', TBaseClass, SizeOf(Integer), Nil, False);
+  try
+    Instance := SynteticClass.Metaclass.Create;
+    try
+      Value := 20;
+      SetAditionalData(Instance, Value);
+      Value := PInteger(GetAditionalData(Instance))^;
+      CheckEquals(20, Value);
+    finally
+      Instance.Free;
+    end;
   finally
     SynteticClass.Free;
   end;

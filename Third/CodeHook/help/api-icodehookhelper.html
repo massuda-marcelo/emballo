@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="author" content="ATopSoft" />
+<meta name="copyright" content="Copyright &copy; 2004-2007, ATopSoft, All Rights Reserved." />
+<meta name="rating" content="Safe For Kids" />
+<meta name="keywords" lang="en" content="meta key" />
+<meta name="description" content="meta desc" />
+
+<title>Win32 CodeHook</title>
+<style type="text/css">@import url('page.css');</style>
+<link rel="stylesheet" type="text/css" href="page.css" />
+</head>
+
+
+<body>
+<div class="header">
+</div>
+<div class="container">
+	<div class="mainbox">
+		 <div class="nav"><ul>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="start.html">Get start</a></li>
+<li><a href="api-icodehook.html">Interface - ICodeHook</a></li>
+<li><a href="api-icodehookhelper.html">Interface - ICodeHookHelper</a></li>
+<li><a href="api-idirectcodehook.html">Interface - IDirectCodeHook</a></li>
+<li><a href="api-ierrorcodehook.html">Interface - IErrorCodeHook</a></li>
+<li><a href="compare-raw-advanced-mode.html">Comparison of raw mode and advanced mode</a></li>
+<li><a href="tutorial.html">Tutorials</a></li>
+<li><a href="faq.html">FAQ</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="version.html">Credits and Versions</a></li>
+
+</ul>
+
+		 </div>
+		 <div class="content">Document of interface ICodeHookHelper<br /><br />This is a wrapper interface of ICodeHook.<br />
+It makes more easier to use hooking.<br />
+To get the interface, call ICodeHook.GetCodeHookHelper;<br /><br />Delphi syntax: <br /><pre>ICodeHookHelper = interface(IErrorCodeHook)
+	procedure <a href="#SetCallingConvention">SetCallingConvention</a>(ATargetCC: Integer; AHookCC: Integer); stdcall;
+	function <a href="#HookWithGlobalMethod">HookWithGlobalMethod</a>(ATargetObject: Pointer; ATarget: Pointer; AHook: Pointer;
+		AParamCount: Integer; AFlags: Cardinal): TCodeHookHandle; stdcall;
+	function <a href="#HookWithObjectMethod">HookWithObjectMethod</a>(ATargetObject: Pointer; AHookObject: Pointer;
+		ATarget: Pointer; AHook: Pointer;
+		AParamCount: Integer; AFlags: Cardinal): TCodeHookHandle; stdcall;
+	function <a href="#HookWithGlobalMethodExtra">HookWithGlobalMethodExtra</a>(ATargetObject: Pointer; ATarget: Pointer; AHook: Pointer;
+		AParamCount: Integer;
+		AExtraParams: PCardinal; AExtraParamCount: Integer;
+		AFlags: Cardinal): TCodeHookHandle; stdcall;
+	function <a href="#HookWithObjectMethodExtra">HookWithObjectMethodExtra</a>(ATargetObject: Pointer; AHookObject: Pointer;
+		ATarget: Pointer; AHook: Pointer;
+		AParamCount: Integer;
+		AExtraParams: PCardinal; AExtraParamCount: Integer;
+		AFlags: Cardinal): TCodeHookHandle; stdcall;
+	function <a href="#UnhookTarget">UnhookTarget</a>(ATarget: Pointer): LongBool; stdcall;
+	procedure <a href="#UnhookAll">UnhookAll</a>; stdcall;
+end;
+</pre>C++ syntax: <br /><pre>class ICodeHookHelper: public ICodeHookError {
+public:
+	virtual void _stdcall <a href="#SetCallingConvention">SetCallingConvention</a>(int TargetCC, int HookCC) = 0;
+	virtual TCodeHookHandle _stdcall <a href="#HookWithGlobalMethod">HookWithGlobalMethod</a>(Pointer TargetObject, Pointer Target,
+		Pointer Hook, int ParamCount, UINT Flags) = 0;
+	virtual TCodeHookHandle _stdcall <a href="#HookWithObjectMethod">HookWithObjectMethod</a>(Pointer TargetObject, Pointer AObject,
+		Pointer Target, Pointer Hook, int ParamCount, UINT Flags) = 0;
+	virtual TCodeHookHandle _stdcall <a href="#HookWithGlobalMethodExtra">HookWithGlobalMethodExtra</a>(Pointer SelfPointer, Pointer Target,
+		Pointer Hook, int ParamCount,
+		PUINT ExtraParams, int ExtraParamCount,
+		UINT Flags) = 0;
+	virtual TCodeHookHandle _stdcall <a href="#HookWithObjectMethodExtra">HookWithObjectMethodExtra</a>(Pointer SelfPointer, Pointer AObject,
+		Pointer Target, Pointer Hook, int ParamCount,
+		PUINT ExtraParams, int ExtraParamCount,
+		UINT Flags) = 0;
+	virtual BOOL _stdcall <a href="#UnhookTarget">UnhookTarget</a>(Pointer Target) = 0;
+	virtual void _stdcall <a href="#UnhookAll">UnhookAll</a>() = 0;
+};
+</pre><a id="SetCallingConvention"></a><div class="function">Function: <h3>SetCallingConvention</h3><br />Set the calling convention of target and hook function.<br />Delphi syntax: <br /><pre>procedure SetCallingConvention(ATargetCC: Integer; AHookCC: Integer); stdcall;</pre><br />C++ syntax: <br /><pre>virtual void calltype SetCallingConvention(int TargetCC, int HookCC) = 0;</pre><br /><br /><b>Params</b><dl><dt class="ParamName">ATargetCC</dt><dd>The target calling convention</dd><dt class="ParamName">AHookCC</dt><dd>The hook calling convention</dd></dl><b>Return value</b><dl><dt>This function doesn't return value. </dt></dl><b>Remarks</b><dl><dt>This function is used to set the default calling convention before hooking.<br />
+In a program, the target and hook calling conventions are usually fixed.<br />
+To you only need to set the calling conventions once.</dt></dl></div>
+
+<a id="HookWithGlobalMethod"></a><div class="function">Function: <h3>HookWithGlobalMethod</h3><br />Hook a method with a global (not class member) method as hook.<br />Delphi syntax: <br /><pre>function HookWithGlobalMethod(ATargetObject: Pointer; ATarget: Pointer; AHook: Pointer;
+      AParamCount: Integer; AFlags: Cardinal): TCodeHookHandle; stdcall;
+</pre><br />C++ syntax: <br /><pre>virtual TCodeHookHandle calltype HookWithGlobalMethod(Pointer TargetObject, Pointer Target,
+		Pointer Hook, int ParamCount, UINT Flags) = 0;</pre><br /><br /><b>Params</b><dl><dt class="ParamName">ATargetObject</dt><dd>Address of the "this" or "self" pointer of the target.<br />
+If the target is a global function, set this parameter to NULL.</dd><dt class="ParamName">ATarget</dt><dd>Address of the target function.</dd><dt class="ParamName">AHook</dt><dd>Address of the hook function.</dd><dt class="ParamName">AParamCount</dt><dd>The param count of the target function.</dd><dt class="ParamName">AFlags</dt><dd>For future use. Now pass it with 0.</dd></dl><b>Return value</b><dl><dt>A handle that represents the code hook information.</dt></dl></div>
+
+<a id="HookWithObjectMethod"></a><div class="function">Function: <h3>HookWithObjectMethod</h3><br />Hook a method with an object (class member) method as hook.<br />Delphi syntax: <br /><pre>function HookWithObjectMethod(ATargetObject: Pointer; AHookObject: Pointer;
+      ATarget: Pointer; AHook: Pointer;
+      AParamCount: Integer; AFlags: Cardinal): TCodeHookHandle; stdcall;
+</pre><br />C++ syntax: <br /><pre>virtual TCodeHookHandle calltype HookWithObjectMethod(Pointer TargetObject, Pointer AObject,
+		Pointer Target, Pointer Hook, int ParamCount, UINT Flags) = 0;</pre><br /><br /><b>Params</b><dl><dt class="ParamName">ATargetObject</dt><dd>Address of the "this" or "self" pointer of the target.<br />
+If the target is a global function, set this parameter to NULL.</dd><dt class="ParamName">AHookObject</dt><dd>Address of the "this" or "self" pointer of the hook.<br />
+If the hook is a global function, use HookWithGlobalMethod instead.</dd><dt class="ParamName">ATarget</dt><dd>Address of the target function.</dd><dt class="ParamName">AHook</dt><dd>Address of the hook function.</dd><dt class="ParamName">AParamCount</dt><dd>The param count of the target function.</dd><dt class="ParamName">AFlags</dt><dd>For future use. Now pass it with 0.</dd></dl><b>Return value</b><dl><dt>A handle that represents the code hook information.</dt></dl></div>
+
+<a id="HookWithGlobalMethodExtra"></a><div class="function">Function: <h3>HookWithGlobalMethodExtra</h3><br />Hook a method with a global (not class member) method with extra parameters as hook.<br />Delphi syntax: <br /><pre>function HookWithGlobalMethodExtra(ATargetObject: Pointer; ATarget: Pointer; AHook: Pointer;
+      AParamCount: Integer;
+      AExtraParams: PCardinal; AExtraParamCount: Integer;
+      AFlags: Cardinal): TCodeHookHandle; stdcall;
+</pre><br />C++ syntax: <br /><pre>virtual TCodeHookHandle calltype HookWithGlobalMethodExtra(Pointer SelfPointer, Pointer Target,
+		Pointer Hook, int ParamCount,
+		PUINT ExtraParams, int ExtraParamCount,
+		UINT Flags) = 0;</pre><br /><br /><b>Params</b><dl><dt class="ParamName">ATargetObject</dt><dd>Address of the "this" or "self" pointer of the target.<br />
+If the target is a global function, set this parameter to NULL.</dd><dt class="ParamName">ATarget</dt><dd>Address of the target function.</dd><dt class="ParamName">AHook</dt><dd>Address of the hook function.</dd><dt class="ParamName">AParamCount</dt><dd>The param count of the target function.</dd><dt class="ParamName">AExtraParams</dt><dd>The pointer to the extra parameters.</dd><dt class="ParamName">AExtraParamCount</dt><dd>The extra parameter count.</dd><dt class="ParamName">AFlags</dt><dd>For future use. Now pass it with 0.</dd></dl><b>Return value</b><dl><dt>A handle that represents the code hook information.</dt></dl></div>
+
+<a id="HookWithObjectMethodExtra"></a><div class="function">Function: <h3>HookWithObjectMethodExtra</h3><br />Hook a method with an object (class member) method with extra parameters as hook.<br />Delphi syntax: <br /><pre>function HookWithObjectMethodExtra(ATargetObject: Pointer; AHookObject: Pointer;
+      ATarget: Pointer; AHook: Pointer;
+      AParamCount: Integer;
+      AExtraParams: PCardinal; AExtraParamCount: Integer;
+      AFlags: Cardinal): TCodeHookHandle; stdcall;
+</pre><br />C++ syntax: <br /><pre>virtual TCodeHookHandle calltype HookWithObjectMethodExtra(Pointer SelfPointer, Pointer AObject,
+		Pointer Target, Pointer Hook, int ParamCount,
+		PUINT ExtraParams, int ExtraParamCount,
+		UINT Flags) = 0;</pre><br /><br /><b>Params</b><dl><dt class="ParamName">ATargetObject</dt><dd>Address of the "this" or "self" pointer of the target.<br />
+If the target is a global function, set this parameter to NULL.</dd><dt class="ParamName">AHookObject</dt><dd>Address of the "this" or "self" pointer of the hook.<br />
+If the hook is a global function, use AllocateGlobalHook instead.</dd><dt class="ParamName">ATarget</dt><dd>Address of the target function.</dd><dt class="ParamName">AHook</dt><dd>Address of the hook function.</dd><dt class="ParamName">AParamCount</dt><dd>The param count of the target function.</dd><dt class="ParamName">AExtraParams</dt><dd>The pointer to the extra parameters.</dd><dt class="ParamName">AExtraParamCount</dt><dd>The extra parameter count.</dd><dt class="ParamName">AFlags</dt><dd>For future use. Now pass it with 0.</dd></dl><b>Return value</b><dl><dt>A handle that represents the code hook information.</dt></dl></div>
+
+<a id="UnhookTarget"></a><div class="function">Function: <h3>UnhookTarget</h3><br />Unhook a target function.<br />Delphi syntax: <br /><pre>function UnhookTarget(ATarget: Pointer): LongBool; stdcall;</pre><br />C++ syntax: <br /><pre>virtual BOOL calltype UnhookTarget(Pointer Target) = 0;</pre><br /><br /><b>Params</b><dl><dt class="ParamName">ATarget</dt><dd>Address of the target function.</dd></dl><b>Return value</b><dl><dt>Return TRUE on success, otherwise, return FALSE.</dt></dl></div>
+
+<a id="UnhookAll"></a><div class="function">Function: <h3>UnhookAll</h3><br />Unhook all hooked target functions.<br />Delphi syntax: <br /><pre>procedure UnhookAll; stdcall;</pre><br />C++ syntax: <br /><pre>virtual void calltype UnhookAll() = 0;</pre><br /><br /><b>Params</b><dl><dt> This function has no parameters. </dt></dl><b>Return value</b><dl><dt>This function doesn't return value. </dt></dl></div>
+
+
+		 </div>
+	</div>
+</div>
+<div class="footer">Copyright &copy; 2008, Wang Qi, All Rights Reserved.
+</div>
+</body>
+</html>

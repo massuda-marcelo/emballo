@@ -1,0 +1,67 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="author" content="ATopSoft" />
+<meta name="copyright" content="Copyright &copy; 2004-2007, ATopSoft, All Rights Reserved." />
+<meta name="rating" content="Safe For Kids" />
+<meta name="keywords" lang="en" content="meta key" />
+<meta name="description" content="meta desc" />
+
+<title>Win32 CodeHook</title>
+<style type="text/css">@import url('page.css');</style>
+<link rel="stylesheet" type="text/css" href="page.css" />
+</head>
+
+
+<body>
+<div class="header">
+</div>
+<div class="container">
+	<div class="mainbox">
+		 <div class="nav"><ul>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="start.html">Get start</a></li>
+<li><a href="api-icodehook.html">Interface - ICodeHook</a></li>
+<li><a href="api-icodehookhelper.html">Interface - ICodeHookHelper</a></li>
+<li><a href="api-idirectcodehook.html">Interface - IDirectCodeHook</a></li>
+<li><a href="api-ierrorcodehook.html">Interface - IErrorCodeHook</a></li>
+<li><a href="compare-raw-advanced-mode.html">Comparison of raw mode and advanced mode</a></li>
+<li><a href="tutorial.html">Tutorials</a></li>
+<li><a href="faq.html">FAQ</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="version.html">Credits and Versions</a></li>
+
+</ul>
+
+		 </div>
+		 <div class="content">Document of interface IErrorCodeHook<br /><br />This interface is intended to main a global error code.<br />
+All other hook interfaces implement this interface so you can use this interface directly in other interfaces.<br /><br />Delphi syntax: <br /><pre>IErrorCodeHook = interface
+	function <a href="#GetErrorCode">GetErrorCode</a>: Cardinal; stdcall;
+	function <a href="#GetErrorMessage">GetErrorMessage</a>(AMessage: PChar; AMessageLen: Integer): Integer; stdcall;
+end;
+</pre>C++ syntax: <br /><pre>class ICodeHookError: public IUnknown {
+public:
+	virtual UINT _stdcall <a href="#GetErrorCode">GetErrorCode</a>() = 0;
+	virtual int _stdcall <a href="#GetErrorMessage">GetErrorMessage</a>(char * Message, int MessageLen) = 0;
+};
+</pre><a id="GetErrorCode"></a><div class="function">Function: <h3>GetErrorCode</h3><br />Retrieve the last error code.<br />Delphi syntax: <br /><pre>function GetErrorCode: Cardinal; stdcall;</pre><br />C++ syntax: <br /><pre>virtual UINT calltype GetErrorCode() = 0;</pre><br /><br /><b>Params</b><dl><dt> This function has no parameters. </dt></dl><b>Return value</b><dl><dt>The last error code.</dt></dl><b>Remarks</b><dl><dt>There are constants defined for error code.<br />
+HEC_NONE: No error occured.<br />
+HEC_FUNCTION_TOO_SMALL: The target function is too small to be hooked. That's to say, a 'ret' or 'iret' instruction is met in the first serveral instructions of the target.<br />
+HEC_UNKNOWN_INSTRUCTION: An instruction can not be recognized by current disassembly engine.<br />
+HEC_ADDRESS_CANNOT_WRITE: The destination address is read only and can't be written.<br />
+HEC_INVALID_HANDLE: The handle passed in as a parameter is invalid.<br />
+HEC_INVALID_CC: The calling convention passed in as a parameter is invalid.<br />
+HEC_TOO_MANY_EXTRA_PARAMS: The extra parameters exceed the maximum count. The maximum count is MAX_EXTRA_PARAM_COUNT.<br />
+HEC_EXTEND_INFO_UNAVAILABLE: Can't find extend information. That usually means you require advanced mode operation on raw mode hooking.</dt></dl></div>
+
+<a id="GetErrorMessage"></a><div class="function">Function: <h3>GetErrorMessage</h3><br />Retrieve the last error message.<br />Delphi syntax: <br /><pre>function GetErrorMessage(AMessage: PChar; AMessageLen: Integer): Integer; stdcall;</pre><br />C++ syntax: <br /><pre>virtual int calltype GetErrorMessage(char * Message, int MessageLen) = 0;</pre><br /><br /><b>Params</b><dl><dt class="ParamName">AMessage</dt><dd>Pointer to the buffer to retrieve the message.</dd><dt class="ParamName">AMessageLen</dt><dd>The buffer length.</dd></dl><b>Return value</b><dl><dt>The byte count that copied to the buffer. If the buffer is too small, the message will be truncated.</dt></dl></div>
+
+
+		 </div>
+	</div>
+</div>
+<div class="footer">Copyright &copy; 2008, Wang Qi, All Rights Reserved.
+</div>
+</body>
+</html>

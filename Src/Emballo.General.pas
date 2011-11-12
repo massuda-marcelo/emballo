@@ -25,7 +25,23 @@ uses
 
 type
   TExceptionClass = class of Exception;
+  TCustomAttributeClass = class of TCustomAttribute;
+
+{ Emballo does some low level hacking to make it possible to hook into
+  non virtual methods. This is usefull e.g. on the Dynamic Proxy or Mocking
+  frameworks. However, this can't be done on very small methods. If you really
+  need to hook into these kind of methods, you can do a call to
+  the MakeMeGoodForHook procedure at the beginning of the method you want to
+  hook. It will ensure that the method has at least the
+  needed size to make it hookable. However, it will also increase your executable
+  file size by a few bytes for each use of this procedure. }
+procedure MakeMeGoodForHook;
 
 implementation
+
+procedure MakeMeGoodForHook;
+begin
+end;
+
 
 end.

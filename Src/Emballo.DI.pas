@@ -3,25 +3,52 @@ unit Emballo.DI;
 interface
 
 uses
-  Rtti, Generics.Collections;
+  Rtti, Generics.Collections, Emballo.General, TypInfo;
 
 type
   TScope = class abstract
   protected
-    function GetInstanceAsObject(const Info: TRttiType): TObject; virtual; abstract;
-    function GetInstanceAsInterface(const Info: TRttiType): IInterface; virtual; abstract;
+    function Get(const Info: TRttiType): TValue; virtual; abstract;
   end;
   TScopeClass = class of TScope;
 
-  TDefaultScope = class(TScope)
-  protected
-    function GetInstanceAsInterface(const Info: TRttiType): IInterface;
-      override;
-    function GetInstanceAsObject(const Info: TRttiType): TObject; override;
+  IInstanceResolver = interface
+    function ResolveType(const RequestedType: TRttiType; const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass): TValue;
   end;
 
-  IBinding = interface
-    ['{A9A4F8A0-A317-4C35-B9AE-92BD6F242A6C}']
+  ITypeInformation = interface
+    ['{ADA7CF05-4489-42A9-9F79-16632CECF778}']
+    function GetRttiType: TRttiType;
+
+    property RttiType: TRttiType read GetRttiType;
+  end;
+
+  TTypeInformation = class(TInterfacedObject, ITypeInformation)
+  private
+    FRttiType: TRttiType;
+
+    function GetRttiType: TRttiType;
+  public
+    constructor Create(const Info: TRttiParameter); overload;
+    constructor Create(const Info: TRttiType); overload;
+  end;
+
+  TDefaultScope = class(TScope)
+  protected
+    function Get(const Info: TRttiType): TValue; override;
+  end;
+
+  IConstantBinding = interface
+    ['{8F1031D7-5956-45BA-A146-A72E14EF3808}']
+    function GetValue: TValue;
+    function GetAttribute: TCustomAttributeClass;
+
+    property Value: TValue read GetValue;
+    property Attribute: TCustomAttributeClass read GetAttribute;
+  end;
+
+  IClassBinding = interface
+    ['{999A7A59-0B73-4899-879A-5A4E7A2AF7B1}']
     function GetBoundType: TRttiType;
     function GetBoundToType: TRttiType;
     function GetScopeClass: TScopeClass;
@@ -31,45 +58,78 @@ type
     property Scope: TScopeClass read GetScopeClass;
   end;
 
-  IInjector = interface
-    ['{EA362B67-A4B9-43E4-B098-77DEF8982303}']
-    function GetInstanceAsObject(const Info: TRttiType): TObject;
-    function GetInstanceAsInterface(const Info: TRttiType): IInterface;
+  ITypeFactory = interface
+    ['{D3FB304F-085A-4041-A5D8-B8EA09554D48}']
+    function TryBuild(Info: ITypeInformation; InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
   end;
 
-  TBinder = class(TObject, IBinding)
+  IConstantBinder = interface
+    ['{DBB405E6-5A0E-438D-8E12-BB61DD291D4F}']
+    procedure ToAttribute(const AttributeClass: TCustomAttributeClass);
+  end;
+
+  IScopper = interface
+    ['{1681158F-CE7A-4A98-B854-4972244A75B2}']
+
+    procedure InScope(const ScopeClass: TScopeClass);
+  end;
+
+  IClassBinder = interface
+    ['{420C04EF-5E8A-431B-8518-707EBF8E95A9}']
+    function ToType(const AClass: TClass): IScopper;
+  end;
+
+  IBindingRegistry = interface(ITypeFactory)
+    ['{21FD7407-15D1-45B4-9C93-129A03D149ED}']
+  end;
+
+  IInjector = interface
+    ['{EA362B67-A4B9-43E4-B098-77DEF8982303}']
+    function GetInstance(const Info: TRttiType): TValue;
+  end;
+
+  TBindingRegistry = class(TInterfacedObject, IBindingRegistry, IClassBinder, IConstantBinder, IScopper)
   private
+    type
+      TBindingKind = (bkClassBinding, bkInterfaceBinding, bkConstantBinding);
+  private
+    FKind: TBindingKind;
     FBoundType: TRttiType;
     FBoundToType: TRttiType;
     FScopeClass: TScopeClass;
     FRttiContext: TRttiContext;
-    function _AddRef: Integer; stdcall;
-    function _Release: Integer; stdcall;
-    function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
+    FValue: TValue;
     function GetBoundType: TRttiType;
     function GetBoundToType: TRttiType;
     function GetScopeClass: TScopeClass;
     function GetInstanceAsObject(const Injector: IInjector): TObject;
     function GetInstanceAsInterface(const Injector: IInjector): IInterface;
+    function TryBuild(Info: ITypeInformation; InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+    procedure ToAttribute(const AttributeClass: TCustomAttributeClass);
   public
-    function ToType(const AClass: TClass): TBinder;
-    function InScope(const ScopeClass: TScopeClass): TBinder;
+    function ToType(const AClass: TClass): IScopper;
+    procedure InScope(const ScopeClass: TScopeClass);
     constructor Create(const BoundType: TClass); overload;
     constructor Create(const BoundType: TGUID); overload;
+    constructor _CreateConstantBinding(const TypeInfo: PTypeInfo; const Value);
+    class function CreateConstantBinding<T>(const Value: T): TBindingRegistry;
     destructor Destroy; override;
   end;
 
   TModule = class abstract
   private
-    FBindings: TList<TBinder>;
+    FBindings: TList<IBindingRegistry>;
     FRttiContext: TRttiContext;
-    function GetBinding(Index: Integer): IBinding;
+    function GetBinding(Index: Integer): IBindingRegistry;
+    function _BindConstant<T>(const Value: T): IConstantBinder;
   public
     constructor Create;
     destructor Destroy; override;
-    property Bindings[Index: Integer]: IBinding read GetBinding;
-    function Bind(const AClass: TClass): TBinder; overload;
-    function Bind(const AGUID: TGUID): TBinder; overload;
+    property Bindings[Index: Integer]: IBindingRegistry read GetBinding;
+    function Bind(const AClass: TClass): IClassBinder; overload;
+    function Bind(const AGUID: TGUID): IClassBinder; overload;
+    function BindConstant(const Value: String): IConstantBinder; overload;
+    function BindConstant(const Value: Boolean): IConstantBinder; overload;
     procedure Configure; virtual; abstract;
   end;
 
@@ -81,17 +141,17 @@ type
     constructor Create(const Modules: array of TModule);
   end;
 
-  TInjectorImpl = class(TInterfacedObject, IInjector)
+  TInjectorImpl = class(TInterfacedObject, IInjector, IInstanceResolver)
   private
     FModules: array of TModule;
     FScopes: TDictionary<TScopeClass, TScope>;
-    FImplicitBindings: TList<TBinder>;
+    FImplicitBindings: TList<IBindingRegistry>;
     FCtx: TRttiContext;
     function Instantiate(const AClass: TClass): TObject;
     function GetScope(const ScopeClass: TScopeClass): TScope;
-    function GetBinder(const Info: TRttiType): TBinder;
-    function GetInstanceAsObject(const Info: TRttiType): TObject;
-    function GetInstanceAsInterface(const Info: TRttiType): IInterface;
+    function Resolve(Info: ITypeInformation; out Value: TValue): Boolean;
+    function ResolveType(const RequestedType: TRttiType; const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass): TValue;
+    function GetInstance(const Info: TRttiType): TValue;
   public
     constructor Create(const Modules: array of TModule);
     destructor Destroy; override;
@@ -102,7 +162,6 @@ implementation
 uses
   SysUtils,
   Emballo.Rtti,
-  TypInfo,
   Emballo.SynteticClass;
 
 var
@@ -116,7 +175,7 @@ var
   i: Integer;
 begin
   FCtx := TRttiContext.Create;
-  FImplicitBindings := TList<TBinder>.Create;
+  FImplicitBindings := TList<IBindingRegistry>.Create;
   FScopes := TDictionary<TScopeClass, TScope>.Create;
 
   SetLength(FModules, Length(Modules));
@@ -138,72 +197,15 @@ begin
     O.Free;
 
   FScopes.Free;
-
-  for O in FImplicitBindings do
-    O.Free;
   FImplicitBindings.Free;
 
   FCtx.Free;
   inherited;
 end;
 
-function TInjectorImpl.GetBinder(const Info: TRttiType): TBinder;
-var
-  Module: TModule;
+function TInjectorImpl.GetInstance(const Info: TRttiType): TValue;
 begin
-  for Module in FModules do
-  begin
-    for Result in Module.FBindings do
-    begin
-      if Result.GetBoundType.Equals(Info) then
-        Exit;
-    end;
-  end;
-
-  for Result in FImplicitBindings do
-  begin
-    if Result.GetBoundType.Equals(Info) then
-      Exit;
-  end;
-
-  if Info.IsInstance then
-  begin
-    Result := TBinder.Create(Info.AsInstance.MetaclassType);
-    Result.ToType(Info.AsInstance.MetaclassType);
-    FImplicitBindings.Add(Result);
-  end
-  else
-    Result := Nil;
-end;
-
-function TInjectorImpl.GetInstanceAsInterface(
-  const Info: TRttiType): IInterface;
-var
-  Module: TModule;
-  Binder: TBinder;
-  Scope: TScope;
-begin
-  Binder := GetBinder(Info);
-  Scope := GetScope(Binder.GetScopeClass);
-  Result := Scope.GetInstanceAsInterface(Info);
-  if Result = Nil then
-  begin
-    Supports(Instantiate(Binder.GetBoundToType.AsInstance.MetaclassType), IInterface, Result);
-//    Result._Release;
-  end;
-end;
-
-function TInjectorImpl.GetInstanceAsObject(const Info: TRttiType): TObject;
-var
-  Module: TModule;
-  Binder: TBinder;
-  Scope: TScope;
-begin
-  Binder := GetBinder(Info);
-  Scope := GetScope(Binder.GetScopeClass);
-  Result := Scope.GetInstanceAsObject(Info);
-  if Result = Nil then
-    Result := Instantiate(Binder.GetBoundToType.AsInstance.MetaclassType);
+  Resolve(TTypeInformation.Create(Info), Result);
 end;
 
 function TInjectorImpl.GetScope(const ScopeClass: TScopeClass): TScope;
@@ -216,6 +218,18 @@ begin
 end;
 
 function TInjectorImpl.Instantiate(const AClass: TClass): TObject;
+
+  procedure FixInterfaceValue(AType: TRttiInterfaceType; var Value: TValue);
+  var
+    Intf: IInterface;
+    FixedInterface: Pointer;
+  begin
+    Intf := Value.AsInterface;
+    Supports(Intf, AType.GUID, FixedInterface);
+    Intf._Release;
+    TValue.Make(@FixedInterface, AType.Handle, Value);
+  end;
+
 var
   M: TRttiMethod;
   ArgsValues: TArray<TValue>;
@@ -254,18 +268,11 @@ begin
         SetLength(ArgsValues, Length(Args));
         for i := 0 to Length(Args) - 1 do
         begin
-          if Args[i].ParamType.IsInstance then
-          begin
-            ArgsValues[i] := TValue.From(Self.GetInstanceAsObject(Args[i].ParamType));
+          Resolve(TTypeInformation.Create(Args[i]), ArgsValues[i]);
+          if Args[i].ParamType is TRttiInterfaceType then
+            FixInterfaceValue(TRttiInterfaceType(Args[i].ParamType), ArgsValues[i])
+          else if Args[i].ParamType.IsInstance then
             ObjectsToFree.Add(ArgsValues[i].AsObject);
-          end
-          else
-          begin
-            ParamIntf := Self.GetInstanceAsInterface(Args[i].ParamType);
-            Supports(ParamIntf, (Args[i].ParamType as TRttiInterfaceType).GUID, Aux);
-            TValue.Make(@Aux, Args[i].ParamType.Handle, ArgsValues[i]);
-            ParamIntf._Release;
-          end;
         end;
 
         Result := M.Invoke(SC.Metaclass, ArgsValues).AsObject;
@@ -277,77 +284,161 @@ begin
   end;
 end;
 
-{ TModule }
+function TInjectorImpl.Resolve(Info: ITypeInformation;
+  out Value: TValue): Boolean;
 
-function TModule.Bind(const AClass: TClass): TBinder;
+  procedure TryWith(const Factory: ITypeFactory);
+  begin
+    Result := Factory.TryBuild(Info, Self, Value);
+  end;
+var
+  Module: TModule;
+  Binding: IBindingRegistry;
 begin
-  Result := TBinder.Create(AClass);
-  FBindings.Add(Result);
+  for Module in FModules do
+  begin
+    for Binding in Module.FBindings do
+    begin
+      TryWith(Binding);
+      if Result then
+        Exit;
+    end;
+  end;
+
+  for Binding in FImplicitBindings do
+  begin
+    TryWith(Binding);
+    if Result then
+      Exit;
+  end;
+
+  if Info.RttiType.IsInstance then
+  begin
+    Value := ResolveType(Info.RttiType, Info.RttiType.AsInstance, TDefaultScope);
+    Result := True;
+    Exit;
+  end;
+
+  Result := False;
 end;
 
-function TModule.Bind(const AGUID: TGUID): TBinder;
+function TInjectorImpl.ResolveType(const RequestedType: TRttiType; const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass): TValue;
+var
+  Scope: TScope;
+  Value: TValue;
+  Intf: IInterface;
 begin
-  Result := TBinder.Create(AGUID);
-  FBindings.Add(Result);
+  Scope := GetScope(ScopeClass);
+  Result := Scope.Get(RequestedType);
+  if Result.IsEmpty then
+  begin
+    Value := TValue.From(Instantiate(ClassType.MetaclassType));
+    if RequestedType is TRttiInterfaceType then
+    begin
+      Supports(Value.AsObject, IInterface, Intf);
+      Result := TValue.From(Intf);
+    end
+    else
+      Result := Value;
+  end;
+end;
+
+{ TModule }
+
+function TModule.Bind(const AClass: TClass): IClassBinder;
+begin
+  Result := TBindingRegistry.Create(AClass);
+  FBindings.Add(Result as IBindingRegistry);
+end;
+
+function TModule.Bind(const AGUID: TGUID): IClassBinder;
+begin
+  Result := TBindingRegistry.Create(AGUID);
+  FBindings.Add(Result as IBindingRegistry);
+end;
+
+function TModule.BindConstant(const Value: Boolean): IConstantBinder;
+begin
+  Result := _BindConstant<Boolean>(Value);
+end;
+
+function TModule.BindConstant(const Value: String): IConstantBinder;
+begin
+  Result := _BindConstant<String>(Value);
 end;
 
 constructor TModule.Create;
 begin
-  FBindings := TList<TBinder>.Create;
+  FBindings := TList<IBindingRegistry>.Create;
   FRttiContext := TRttiContext.Create;
 end;
 
 destructor TModule.Destroy;
-var
-  Binder: TBinder;
 begin
-  for Binder in FBindings do
-      Binder.Free;
-
   FBindings.Free;
   FRttiContext.Free;
   inherited;
 end;
 
-function TModule.GetBinding(Index: Integer): IBinding;
+function TModule.GetBinding(Index: Integer): IBindingRegistry;
 begin
   Result := FBindings[Index];
 end;
 
-{ TBinder }
+function TModule._BindConstant<T>(const Value: T): IConstantBinder;
+begin
+  Result := TBindingRegistry.CreateConstantBinding<T>(Value);
+  FBindings.Add(Result as IBindingRegistry);
+end;
 
-constructor TBinder.Create(const BoundType: TClass);
+{ TBindingRegistry }
+
+constructor TBindingRegistry.Create(const BoundType: TClass);
 begin
   FRttiContext := TRttiContext.Create;
   FScopeClass := TDefaultScope;
   FBoundType := FRttiContext.GetType(BoundType);
+  FKind := bkClassBinding;
 end;
 
-constructor TBinder.Create(const BoundType: TGUID);
+constructor TBindingRegistry.Create(const BoundType: TGUID);
 begin
   FRttiContext := TRttiContext.Create;
   FScopeClass := TDefaultScope;
   FBoundType := GetRttiTypeFromGUID(Ctx, BoundType);
+  FKind := bkInterfaceBinding;
 end;
 
-destructor TBinder.Destroy;
+class function TBindingRegistry.CreateConstantBinding<T>(
+  const Value: T): TBindingRegistry;
+begin
+  Result := TBindingRegistry._CreateConstantBinding(TypeInfo(T), Value);
+end;
+
+constructor TBindingRegistry._CreateConstantBinding(const TypeInfo: PTypeInfo; const Value);
+begin
+  FKind := bkConstantBinding;
+  TValue.Make(@Value, TypeInfo, FValue);
+end;
+
+destructor TBindingRegistry.Destroy;
 begin
   FRttiContext.Free;
   inherited;
 end;
 
-function TBinder.GetBoundToType: TRttiType;
+function TBindingRegistry.GetBoundToType: TRttiType;
 begin
   Result := FBoundToType;
 end;
 
 
-function TBinder.GetBoundType: TRttiType;
+function TBindingRegistry.GetBoundType: TRttiType;
 begin
   Result := FBoundType;
 end;
 
-function TBinder.GetInstanceAsInterface(const Injector: IInjector): IInterface;
+function TBindingRegistry.GetInstanceAsInterface(const Injector: IInjector): IInterface;
 var
   Obj: TObject;
 begin
@@ -356,44 +447,62 @@ begin
   Result._Release;
 end;
 
-function TBinder.GetInstanceAsObject(const Injector: IInjector): TObject;
+function TBindingRegistry.GetInstanceAsObject(const Injector: IInjector): TObject;
 begin
   Result := FBoundToType.AsInstance.MetaclassType.NewInstance;
 end;
 
-function TBinder.GetScopeClass: TScopeClass;
+function TBindingRegistry.GetScopeClass: TScopeClass;
 begin
   Result := FScopeClass;
 end;
 
-function TBinder.InScope(const ScopeClass: TScopeClass): TBinder;
+procedure TBindingRegistry.InScope(const ScopeClass: TScopeClass);
 begin
   FScopeClass := ScopeClass;
-  REsult := Self;
 end;
 
-function TBinder.ToType(const AClass: TClass): TBinder;
+procedure TBindingRegistry.ToAttribute(
+  const AttributeClass: TCustomAttributeClass);
+begin
+
+end;
+
+function TBindingRegistry.ToType(const AClass: TClass): IScopper;
 begin
   FBoundToType := FRttiContext.GetType(AClass);
   Result := Self;
 end;
 
-function TBinder.QueryInterface(const IID: TGUID; out Obj): HResult;
-begin
-  if GetInterface(IID, Obj) then
-    Result := 0
-  else
-    Result := E_NOINTERFACE;
-end;
+function TBindingRegistry.TryBuild(Info: ITypeInformation;
+  InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
 
-function TBinder._AddRef: Integer;
-begin
-  Result := -1;
-end;
+  function IsInterface: Boolean;
+  begin
+    Result := Info.RttiType is TRttiInterfaceType;
+  end;
 
-function TBinder._Release: Integer;
+  function CompareGuids: Boolean;
+  begin
+    Result := IsEqualGUID(TRttiInterfaceType(FBoundType).GUID, TRttiInterfaceType(Info.RttiType).GUID);
+  end;
+
 begin
-  Result := -1;
+  if ((FKind = bkClassBinding) and Info.RttiType.IsInstance and FBoundType.Equals(Info.RttiType)) or
+     ((FKind = bkInterfaceBinding) and IsInterface and CompareGuids) then
+  begin
+    Value := InstanceResolver.ResolveType(FBoundType, FBoundToType.AsInstance, FScopeClass);
+    Result := True;
+    Exit;
+  end
+  else if (FKind = bkConstantBinding) and (Info.RttiType.Handle = FValue.TypeInfo) then
+  begin
+    Value := FValue;
+    Result := True;
+    Exit;
+  end;
+
+  Result := False;
 end;
 
 { TInjector }
@@ -407,12 +516,17 @@ function TInjector.GetInstance<T>: T;
 var
   Info: TRttiType;
   Ctx: TRttiContext;
+  V: TValue;
 begin
   Ctx := TRttiContext.Create;
   try
     Info := Ctx.GetType(TypeInfo(T));
+    V := FInjector.GetInstance(Info);
     if Info.IsInstance then
-      Result := T(FInjector.GetInstanceAsObject(Info));
+      Result := T(V.AsObject)
+    else if Info is TRttiInterfaceType then
+      Supports(V.AsInterface, TRttiInterfaceType(Info).GUID, Result);
+
   finally
     Ctx.Free;
   end;
@@ -420,17 +534,27 @@ end;
 
 { TDefaultScope }
 
-function TDefaultScope.GetInstanceAsInterface(
-  const Info: TRttiType): IInterface;
+function TDefaultScope.Get(const Info: TRttiType): TValue;
 begin
   { The default scope behaviour is that nothing is scopped }
   Result := Nil;
 end;
 
-function TDefaultScope.GetInstanceAsObject(const Info: TRttiType): TObject;
+{ TTypeInformation }
+
+constructor TTypeInformation.Create(const Info: TRttiParameter);
 begin
-  { The default scope behaviour is that nothing is scopped }
-  Result := Nil;
+  FRttiType := Info.ParamType;
+end;
+
+constructor TTypeInformation.Create(const Info: TRttiType);
+begin
+  FRttiType := Info;
+end;
+
+function TTypeInformation.GetRttiType: TRttiType;
+begin
+  Result := FRttiType;
 end;
 
 initialization

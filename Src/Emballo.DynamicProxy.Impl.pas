@@ -23,6 +23,7 @@ interface
 uses
   Rtti,
   TypInfo,
+  CodeHookIntf,
   Emballo.Interfaces.InterfacedObject,
   Emballo.DynamicProxy.InterfaceProxy,
   Emballo.DynamicProxy.InvokationHandler,
@@ -31,6 +32,8 @@ uses
   Emballo.SynteticClass, classes;
 
 type
+  TNonVirtualMethodHookFilter = reference to procedure (const Method: TRttiMethod; var ShouldHook: Boolean);
+
   TDynamicProxy = class(TEbInterfacedObject)
   private
     FInvokationHandler: TInvokationHandlerAnonMethod;
@@ -44,13 +47,15 @@ type
     procedure NewDestroy(Instance: TObject; Outermost: SmallInt);
     procedure GenerateNewDestroy;
     procedure OverrideVirtualMethods(const ParentClass: TClass);
+    procedure HookNonVirtualMethods(const ParentClass: TClass; const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
+    function NVHook(AHandle: TCodeHookHandle; AParams: PCardinal): Cardinal;
   protected
     function QueryInterface(const IID: TGUID; out Obj): HRESULT; override; stdcall;
   public
     constructor Create(const ParentClass: TClass; ImplementedInterfaces: TArray<PTypeInfo>;
-      InvokationHandler: TInvokationHandlerAnonMethod); overload;
+      InvokationHandler: TInvokationHandlerAnonMethod; const NonVirtualHookFilter: TNonVirtualMethodHookFilter); overload;
     constructor Create(const ParentClass: TClass; ImplementedInterfaces: TArray<PTypeInfo>;
-      InvokationHandler: TInvokationHandlerMethod); overload;
+      InvokationHandler: TInvokationHandlerMethod; const NonVirtualHookFilter: TNonVirtualMethodHookFilter); overload;
     destructor Destroy; override;
     property ProxyObject: TObject read FProxyObject;
   end;
@@ -68,10 +73,15 @@ type
 
   end;
 
+var
+  GCodeHook: ICodeHook;
+  GCodeHookHelper: ICodeHookHelper;
+
 { TDynamicProxy }
 
 constructor TDynamicProxy.Create(const ParentClass: TClass;
-  ImplementedInterfaces: TArray<PTypeInfo>; InvokationHandler: TInvokationHandlerAnonMethod);
+  ImplementedInterfaces: TArray<PTypeInfo>; InvokationHandler: TInvokationHandlerAnonMethod;
+  const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
 var
   i: Integer;
   LParentClass: TClass;
@@ -126,16 +136,20 @@ begin
 
     Move(VTable, Pointer(Integer(FProxyObject) + IOffset)^, SizeOf(Integer));
   end;
+
+  HookNonVirtualMethods(LParentClass, NonVirtualHookFilter);
 end;
 
 constructor TDynamicProxy.Create(const ParentClass: TClass;
-  ImplementedInterfaces: TArray<PTypeInfo>; InvokationHandler: TInvokationHandlerMethod);
+  ImplementedInterfaces: TArray<PTypeInfo>; InvokationHandler: TInvokationHandlerMethod;
+  const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
 begin
   Create(ParentClass, ImplementedInterfaces, procedure(const Method: TRttiMethod;
     const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
     InvokationHandler(Method, Parameters, Result);
-  end);
+  end,
+  NonVirtualHookFilter);
 end;
 
 destructor TDynamicProxy.Destroy;
@@ -184,6 +198,12 @@ begin
   Free;
 end;
 
+function TDynamicProxy.NVHook(AHandle: TCodeHookHandle;
+  AParams: PCardinal): Cardinal;
+begin
+  FInvokationHandler(Nil, Nil, Nil);
+end;
+
 procedure TDynamicProxy.OverrideVirtualMethods(const ParentClass: TClass);
 var
   RttiType: TRttiType;
@@ -215,5 +235,37 @@ begin
   else
     Result := E_NOINTERFACE;
 end;
+
+procedure TDynamicProxy.HookNonVirtualMethods(const ParentClass: TClass;
+  const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
+
+  function ShouldHook(const Method: TRttiMethod): Boolean;
+  begin
+    Result := False;
+    if Assigned(NonVirtualHookFilter) then
+      NonVirtualHookFilter(Method, Result);
+  end;
+
+var
+  H: TCodeHookHandle;
+  RttiType: TRttiType;
+  Method: TRttiMethod;
+begin
+  RttiType := FRttiContext.GetType(ParentClass);
+//  GCodeHook.SetUserDataSize(SizeOf(TMyUserData));
+  for Method in RttiType.GetMethods do
+  begin
+    GCodeHookHelper.SetCallingConvention(HCC_REGISTER, HCC_REGISTER);
+    if (Method.DispatchKind = dkStatic) and ShouldHook(Method) then
+      GCodeHookHelper.HookWithObjectMethod(Self, Self, FRttiContext.GetType(ParentClass).GetMethod(Method.Name).CodeAddress, @TDynamicProxy.NVHook, 1, 0);
+  end;
+//  PMyUserData(GCodeHook.GetUserData(H))^.Msg := 'This is user data';
+//  lObjTarget.TestTarget('This is a test', 3);
+end;
+
+initialization
+InitCodeHookDLL('CHook.dll');
+GetCodeHook(GCodeHook);
+GCodeHook.GetCodeHookHelper(GCodeHookHelper);
 
 end.

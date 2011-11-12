@@ -48,7 +48,7 @@ function TDynamicProxyService.Get<T>(InvocationHandler: TInvokationHandlerAnonMe
 var
   Proxy: TDynamicProxy;
 begin
-  Proxy := TDynamicProxy.Create(TClass(T), Nil, InvocationHandler);
+  Proxy := TDynamicProxy.Create(TClass(T), Nil, InvocationHandler, Nil);
   Result := T(Proxy.ProxyObject);
 end;
 
@@ -56,7 +56,7 @@ function TDynamicProxyService.Get<T>(InvocationHandler: TInvokationHandlerMethod
 var
   Proxy: TDynamicProxy;
 begin
-  Proxy := TDynamicProxy.Create(TClass(T), Nil, InvocationHandler);
+  Proxy := TDynamicProxy.Create(TClass(T), Nil, InvocationHandler, Nil);
   Result := T(Proxy.ProxyObject);
 end;
 

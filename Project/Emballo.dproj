@@ -60,6 +60,7 @@
 			</DelphiCompile>
 			<DCCReference Include="rtl.dcp"/>
 			<DCCReference Include="dbrtl.dcp"/>
+			<DCCReference Include="vcl.dcp"/>
 			<DCCReference Include="..\Src\Emballo.RuntimeCodeGeneration.AsmBlock.pas"/>
 			<DCCReference Include="..\Src\Emballo.DllWrapper.pas"/>
 			<DCCReference Include="..\Src\Emballo.DllWrapper.Impl.pas"/>
@@ -99,6 +100,7 @@
 			<DCCReference Include="..\Src\Emballo.DynamicProxy.NativeToInvokationHandlerBridge.pas"/>
 			<DCCReference Include="..\Src\Emballo.RuntimeCodeGeneration.MethodInvokationInfo.pas"/>
 			<DCCReference Include="..\Src\Emballo.DI.pas"/>
+			<DCCReference Include="Emballo.DI.DefaultBindings.pas"/>
 			<None Include="..\Src\Emballo.TypeWrappers.TypeWrapperInterfaceTemplate.inc"/>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>

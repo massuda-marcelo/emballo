@@ -61,7 +61,8 @@ uses
   Emballo.DynamicProxy.MethodImplTests_Register in '..\Tests\Emballo.DynamicProxy.MethodImplTests_Register.pas',
   Emballo.RuntimeCodeGeneration.MethodInvokationInfoTests in '..\Tests\Emballo.RuntimeCodeGeneration.MethodInvokationInfoTests.pas',
   Emballo.DITests in '..\Tests\Emballo.DITests.pas',
-  Emballo.DI.InjectorTests in '..\Tests\Emballo.DI.InjectorTests.pas';
+  Emballo.DI.InjectorTests in '..\Tests\Emballo.DI.InjectorTests.pas',
+  Emballo.DI.InjectorConstantTests in '..\Tests\Emballo.DI.InjectorConstantTests.pas';
 
 {$R *.RES}
 

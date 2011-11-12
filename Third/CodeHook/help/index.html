@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="author" content="ATopSoft" />
+<meta name="copyright" content="Copyright &copy; 2004-2007, ATopSoft, All Rights Reserved." />
+<meta name="rating" content="Safe For Kids" />
+<meta name="keywords" lang="en" content="meta key" />
+<meta name="description" content="meta desc" />
+
+<title>Win32 CodeHook</title>
+<style type="text/css">@import url('page.css');</style>
+<link rel="stylesheet" type="text/css" href="page.css" />
+</head>
+
+
+<body>
+<div class="header">
+</div>
+<div class="container">
+	<div class="mainbox">
+		 <div class="nav"><ul>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="start.html">Get start</a></li>
+<li><a href="api-icodehook.html">Interface - ICodeHook</a></li>
+<li><a href="api-icodehookhelper.html">Interface - ICodeHookHelper</a></li>
+<li><a href="api-idirectcodehook.html">Interface - IDirectCodeHook</a></li>
+<li><a href="api-ierrorcodehook.html">Interface - IErrorCodeHook</a></li>
+<li><a href="compare-raw-advanced-mode.html">Comparison of raw mode and advanced mode</a></li>
+<li><a href="tutorial.html">Tutorials</a></li>
+<li><a href="faq.html">FAQ</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="version.html">Credits and Versions</a></li>
+
+</ul>
+
+		 </div>
+		 <div class="content">CodeHook is a library for binary code hook and redirect. <br />
+It supports some useful features to make code hooking a piece of cake. <br />
+It's free and open source. The license is MPL. <br />
+<br />
+
+Current version is 1.0.0. <br />
+
+<div class="plist">
+<h3>Features and advantages</h3>
+<h5>1, Can hook function that starts with jump instructions. </h5>
+Most other simple API/code hook technic can not hook functions that first several instructions include jump instructions such like jmp, jcc (jump if condition is met), call, jecxz, etc. <br />
+CodeHook can rewrite those instructions in a safe way and continue hooking. <br />
+The only instructions that can prevent CodeHook from hooking are ret and iret, which indicate the function end is met and the function is too short to hook. <br />
+
+<h5>2, Very easily to use. </h5>
+CodeHook not only supports raw mode code hooking, it also supports advanced hooking. <br />
+CodeHook can generate "bridge code" that connects your hook code to the target code. <br />
+Thus you only need to writer hook code in a unique form (unique prototype functions) rather than writting different hook code for different target. <br />
+The typical hook prototype is, <br />
+Delphi syntax: <b>function HookCallback(AHandle: TCodeHookHandle; AParams: PCodeHookParamAccessor): Cardinal; CallingConvertion;</b> <br />
+C++ syntax: <b>DWORD CallingConvertion HookCallback(TCodeHookHandle AHandle, PDWORD AParams);</b> <br />
+This feature makes it possible to use one hook function to hook multiple functions. See the Delphi sample code. And this is how I do in the new Denomo package. <br />
+And even better, both of the hook and target functions can have various calling conventions. The calling conventions now supported are stdcall (used by Windows APIs), cdecl (used by C), and register call (used by Delphi). <br >
+
+<h5>3, Very flexible. </h5>
+Win32 CodeHook separates your hook function from the target function. Your hook function can fully replace the target function, or call old target function in the hook function in any time you want. <br />
+And even more flexible, you can easily modify the parameters before passing them to the old target function. <br />
+
+<h5>4, Can be used by any program language which can use a DLL. </h5>
+Though CodeHook is written in Delphi, the CHook.dll can be used by any other languages such like C++. In fact CodeHook has sample code that written in Delphi and C++. The sample C++ code can be compiled by VC6 and Borland C++ 5.5 or C++ Builder (BCB). <br />
+
+<h5>5, Free and open source. </h5>
+The license is MPL. <br />
+
+<h5>6, More feature will come soon. </h5>
+Win32 CodeHook was made to use in Denomo (a memory leak detection tool), so it now only supports in-process hooking. But inter-process hooking and DLL injection will be added in the near future versions. <br />
+
+</div>
+
+<br />
+
+CodeHook itself has been verified that it can be compiled by Delphi 7 and Delphi 2007. It should but not must be able to be compiled by Delphi 6, Delphi 2005, and Delphi 2006. <br />
+CHook.dll can be used by any language that supports DLL, pointer, and data structure. <br />
+
+<br />
+
+		 </div>
+	</div>
+</div>
+<div class="footer">Copyright &copy; 2008, Wang Qi, All Rights Reserved.
+</div>
+</body>
+</html>

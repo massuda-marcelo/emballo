@@ -1,0 +1,72 @@
+﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+		<PropertyGroup>
+			<ProjectGuid>{07D54FB0-2230-45DE-A0AB-16D303A1F39A}</ProjectGuid>
+		</PropertyGroup>
+		<ItemGroup>
+			<Projects Include="DllWrapperTestDXE2.dproj">
+				<Dependencies/>
+			</Projects>
+			<Projects Include="EmballoDXE2.dproj">
+				<Dependencies/>
+			</Projects>
+			<Projects Include="EmballoTestsDXE2.dproj">
+				<Dependencies>EmballoDXE2.dproj;DllWrapperTestDXE2.dproj</Dependencies>
+			</Projects>
+			<Projects Include="..\Demo\Project\DemoDXE2.dproj">
+				<Dependencies/>
+			</Projects>
+		</ItemGroup>
+		<ProjectExtensions>
+			<Borland.Personality>Default.Personality.12</Borland.Personality>
+			<Borland.ProjectType/>
+			<BorlandProject>
+				<Default.Personality/>
+			</BorlandProject>
+		</ProjectExtensions>
+		<Target Name="DllWrapperTestDXE2">
+			<MSBuild Projects="DllWrapperTestDXE2.dproj"/>
+		</Target>
+		<Target Name="DllWrapperTestDXE2:Clean">
+			<MSBuild Targets="Clean" Projects="DllWrapperTestDXE2.dproj"/>
+		</Target>
+		<Target Name="DllWrapperTestDXE2:Make">
+			<MSBuild Targets="Make" Projects="DllWrapperTestDXE2.dproj"/>
+		</Target>
+		<Target Name="EmballoDXE2">
+			<MSBuild Projects="EmballoDXE2.dproj"/>
+		</Target>
+		<Target Name="EmballoDXE2:Clean">
+			<MSBuild Targets="Clean" Projects="EmballoDXE2.dproj"/>
+		</Target>
+		<Target Name="EmballoDXE2:Make">
+			<MSBuild Targets="Make" Projects="EmballoDXE2.dproj"/>
+		</Target>
+		<Target DependsOnTargets="EmballoDXE2;DllWrapperTestDXE2" Name="EmballoTestsDXE2">
+			<MSBuild Projects="EmballoTestsDXE2.dproj"/>
+		</Target>
+		<Target DependsOnTargets="EmballoDXE2:Clean;DllWrapperTestDXE2:Clean" Name="EmballoTestsDXE2:Clean">
+			<MSBuild Targets="Clean" Projects="EmballoTestsDXE2.dproj"/>
+		</Target>
+		<Target DependsOnTargets="EmballoDXE2:Make;DllWrapperTestDXE2:Make" Name="EmballoTestsDXE2:Make">
+			<MSBuild Targets="Make" Projects="EmballoTestsDXE2.dproj"/>
+		</Target>
+		<Target Name="DemoDXE2">
+			<MSBuild Projects="..\Demo\Project\DemoDXE2.dproj"/>
+		</Target>
+		<Target Name="DemoDXE2:Clean">
+			<MSBuild Targets="Clean" Projects="..\Demo\Project\DemoDXE2.dproj"/>
+		</Target>
+		<Target Name="DemoDXE2:Make">
+			<MSBuild Targets="Make" Projects="..\Demo\Project\DemoDXE2.dproj"/>
+		</Target>
+		<Target Name="Build">
+			<CallTarget Targets="DllWrapperTestDXE2;EmballoDXE2;EmballoTestsDXE2;DemoDXE2"/>
+		</Target>
+		<Target Name="Clean">
+			<CallTarget Targets="DllWrapperTestDXE2:Clean;EmballoDXE2:Clean;EmballoTestsDXE2:Clean;DemoDXE2:Clean"/>
+		</Target>
+		<Target Name="Make">
+			<CallTarget Targets="DllWrapperTestDXE2:Make;EmballoDXE2:Make;EmballoTestsDXE2:Make;DemoDXE2:Make"/>
+		</Target>
+		<Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+	</Project>

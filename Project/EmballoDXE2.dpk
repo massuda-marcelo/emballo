@@ -1,0 +1,97 @@
+{   Copyright 2010 - Magno Machado Paulo (magnomp@gmail.com)
+
+    This file is part of Emballo.
+
+    Emballo is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of
+    the License, or (at your option) any later version.
+
+    Emballo is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with Emballo.
+    If not, see <http://www.gnu.org/licenses/>. }
+
+package EmballoDXE2;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO ON}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl,
+  dbrtl,
+  vcl;
+
+contains
+  Emballo.RuntimeCodeGeneration.AsmBlock in '..\Src\Emballo.RuntimeCodeGeneration.AsmBlock.pas',
+  Emballo.DllWrapper in '..\Src\Emballo.DllWrapper.pas',
+  Emballo.DllWrapper.Impl in '..\Src\Emballo.DllWrapper.Impl.pas',
+  Emballo.Rtti in '..\Src\Emballo.Rtti.pas',
+  Emballo.DynamicProxy.Impl in '..\Src\Emballo.DynamicProxy.Impl.pas',
+  Emballo.Interfaces.InterfacedObject in '..\Src\Emballo.Interfaces.InterfacedObject.pas',
+  Emballo.RuntimeCodeGeneration.CallingConventions in '..\Src\Emballo.RuntimeCodeGeneration.CallingConventions.pas',
+  Emballo.DynamicProxy.InvokationHandler in '..\Src\Emballo.DynamicProxy.InvokationHandler.pas',
+  Emballo.DynamicProxy.InvokationHandler.ParameterImpl in '..\Src\Emballo.DynamicProxy.InvokationHandler.ParameterImpl.pas',
+  Emballo.Interfaces.DynamicInterfaceHelper in '..\Src\Emballo.Interfaces.DynamicInterfaceHelper.pas',
+  Emballo.Hash.Algorithm in '..\Src\Emballo.Hash.Algorithm.pas',
+  Emballo.Hash.Md5Algorithm in '..\Src\Emballo.Hash.Md5Algorithm.pas',
+  Emballo.Hash.Impl.Md5 in '..\Src\Emballo.Hash.Impl.Md5.pas',
+  Emballo.Hash.BaseAlgorithm in '..\Src\Emballo.Hash.BaseAlgorithm.pas',
+  Emballo.Persistence.Session in '..\Src\Emballo.Persistence.Session.pas',
+  Emballo.Persistence.Mapping.AttributeMapping in '..\Src\Emballo.Persistence.Mapping.AttributeMapping.pas',
+  Emballo.Persistence.Mapping.ClassMapping in '..\Src\Emballo.Persistence.Mapping.ClassMapping.pas',
+  Emballo.TypeWrappers in '..\Src\Emballo.TypeWrappers.pas',
+  Emballo.Mock.MockService in '..\Src\Emballo.Mock.MockService.pas',
+  Emballo.Mock.Mock in '..\Src\Emballo.Mock.Mock.pas',
+  Emballo.Mock.MockInternalImpl in '..\Src\Emballo.Mock.MockInternalImpl.pas',
+  Emballo.DynamicProxy.DynamicProxyService in '..\Src\Emballo.DynamicProxy.DynamicProxyService.pas',
+  Emballo.SynteticClass in '..\Src\Emballo.SynteticClass.pas',
+  Emballo.DynamicProxy.MethodImpl in '..\Src\Emballo.DynamicProxy.MethodImpl.pas',
+  Emballo.Mock.ExpectedMethodCall in '..\Src\Emballo.Mock.ExpectedMethodCall.pas',
+  Emballo.Mock.MethodAction in '..\Src\Emballo.Mock.MethodAction.pas',
+  Emballo.Mock.DummyMethodAction in '..\Src\Emballo.Mock.DummyMethodAction.pas',
+  Emballo.Mock.RaiseExceptionClassMethodAction in '..\Src\Emballo.Mock.RaiseExceptionClassMethodAction.pas',
+  Emballo.General in '..\Src\Emballo.General.pas',
+  Emballo.Mock.ReturnValueMethodAction in '..\Src\Emballo.Mock.ReturnValueMethodAction.pas',
+  Emballo.DynamicProxy.InterfaceProxy in '..\Src\Emballo.DynamicProxy.InterfaceProxy.pas',
+  Emballo.Mock.MockInternal in '..\Src\Emballo.Mock.MockInternal.pas',
+  Emballo.Mock.UnexpectedUsage in '..\Src\Emballo.Mock.UnexpectedUsage.pas',
+  Emballo.Mock.When in '..\Src\Emballo.Mock.When.pas',
+  Emballo.Mock.ParameterMatcher in '..\Src\Emballo.Mock.ParameterMatcher.pas',
+  Emballo.Mock.EqualsParameterMatcher in '..\Src\Emballo.Mock.EqualsParameterMatcher.pas',
+  Emballo.DynamicProxy.NativeToInvokationHandlerBridge in '..\Src\Emballo.DynamicProxy.NativeToInvokationHandlerBridge.pas',
+  Emballo.RuntimeCodeGeneration.MethodInvokationInfo in '..\Src\Emballo.RuntimeCodeGeneration.MethodInvokationInfo.pas',
+  Emballo.DI in '..\Src\Emballo.DI.pas',
+  Emballo.DI.DefaultBindings in '..\Src\Emballo.DI.DefaultBindings.pas',
+  Emballo.Services in '..\Src\Emballo.Services.pas',
+  CodeHookIntf in '..\Src\CodeHookIntf.pas';
+
+end.

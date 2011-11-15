@@ -88,6 +88,60 @@ type
     function GetInstance(const Info: TRttiType): TValue;
   end;
 
+  IProtoBinder = interface
+    ['{6381FDA9-F512-4C16-9284-A3D4907CEBE0}']
+    procedure ToInstance(const Instance: TObject); overload;
+    procedure ToInstance(const Instance: IInterface); overload;
+    function ToType(const AType: TClass): IScopper;
+  end;
+
+  TAbstractConcreteTypeBinding = class(TInterfacedObject, IBindingRegistry, IScopper)
+  private
+    FType: TRttiType;
+    FConcreteType: TRttiType;
+    FScope: TScopeClass;
+    FContext: TRttiContext;
+  protected
+    function Accept(const Info: ITypeInformation): Boolean; virtual; abstract;
+  public
+    constructor Create(const AType: TRttiType; const AConcreteType: TClass);
+    function TryBuild(Info: ITypeInformation;
+      InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+    procedure InScope(const ScopeClass: TScopeClass);
+    destructor Destroy; override;
+  end;
+
+  TClassBinding = class(TAbstractConcreteTypeBinding)
+  protected
+    function Accept(const Info: ITypeInformation): Boolean; override;
+  end;
+
+  TInterfaceBinding = class(TAbstractConcreteTypeBinding)
+  protected
+    function Accept(const Info: ITypeInformation): Boolean; override;
+  end;
+
+  TProtoBinder = class(TInterfacedObject, IProtoBinder)
+  private
+    FBindings: TList<IBindingRegistry>;
+    FType: ITypeInformation;
+    procedure ToInstance(const Instance: TObject); overload;
+    procedure ToInstance(const Instance: IInterface); overload;
+    function ToType(const AType: TClass): IScopper;
+  public
+    constructor Create(const AType: ITypeInformation; const Bindings: TList<IBindingRegistry>);
+  end;
+
+  TInstanceBinding = class(TInterfacedObject, IBindingRegistry)
+  private
+    FType: ITypeInformation;
+    FInstance: TValue;
+  public
+    function TryBuild(Info: ITypeInformation;
+      InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+    constructor Create(const AType: ITypeInformation; const Instance: TValue);
+  end;
+
   TBindingRegistry = class(TInterfacedObject, IBindingRegistry, IClassBinder, IConstantBinder, IScopper)
   private
     type
@@ -126,8 +180,8 @@ type
     constructor Create;
     destructor Destroy; override;
     property Bindings[Index: Integer]: IBindingRegistry read GetBinding;
-    function Bind(const AClass: TClass): IClassBinder; overload;
-    function Bind(const AGUID: TGUID): IClassBinder; overload;
+    function Bind(const AClass: TClass): IProtoBinder; overload;
+    function Bind(const AGUID: TGUID): IProtoBinder; overload;
     function BindConstant(const Value: String): IConstantBinder; overload;
     function BindConstant(const Value: Boolean): IConstantBinder; overload;
     procedure Configure; virtual; abstract;
@@ -345,16 +399,14 @@ end;
 
 { TModule }
 
-function TModule.Bind(const AClass: TClass): IClassBinder;
+function TModule.Bind(const AClass: TClass): IProtoBinder;
 begin
-  Result := TBindingRegistry.Create(AClass);
-  FBindings.Add(Result as IBindingRegistry);
+  Result := TProtoBinder.Create(TTypeInformation.Create(FRttiContext.GetType(AClass)), FBindings);
 end;
 
-function TModule.Bind(const AGUID: TGUID): IClassBinder;
+function TModule.Bind(const AGUID: TGUID): IProtoBinder;
 begin
-  Result := TBindingRegistry.Create(AGUID);
-  FBindings.Add(Result as IBindingRegistry);
+  Result := TProtoBinder.Create(TTypeInformation.Create(GetRttiTypeFromGUID(FRttiContext, AGUID)), FBindings);
 end;
 
 function TModule.BindConstant(const Value: Boolean): IConstantBinder;
@@ -476,26 +528,8 @@ end;
 
 function TBindingRegistry.TryBuild(Info: ITypeInformation;
   InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
-
-  function IsInterface: Boolean;
-  begin
-    Result := Info.RttiType is TRttiInterfaceType;
-  end;
-
-  function CompareGuids: Boolean;
-  begin
-    Result := IsEqualGUID(TRttiInterfaceType(FBoundType).GUID, TRttiInterfaceType(Info.RttiType).GUID);
-  end;
-
 begin
-  if ((FKind = bkClassBinding) and Info.RttiType.IsInstance and FBoundType.Equals(Info.RttiType)) or
-     ((FKind = bkInterfaceBinding) and IsInterface and CompareGuids) then
-  begin
-    Value := InstanceResolver.ResolveType(FBoundType, FBoundToType.AsInstance, FScopeClass);
-    Result := True;
-    Exit;
-  end
-  else if (FKind = bkConstantBinding) and (Info.RttiType.Handle = FValue.TypeInfo) then
+  if (FKind = bkConstantBinding) and (Info.RttiType.Handle = FValue.TypeInfo) then
   begin
     Value := FValue;
     Result := True;
@@ -555,6 +589,111 @@ end;
 function TTypeInformation.GetRttiType: TRttiType;
 begin
   Result := FRttiType;
+end;
+
+{ TProtoBinder }
+
+constructor TProtoBinder.Create(const AType: ITypeInformation;
+  const Bindings: TList<IBindingRegistry>);
+begin
+  FType := AType;
+  FBindings := Bindings;
+end;
+
+procedure TProtoBinder.ToInstance(const Instance: TObject);
+begin
+  FBindings.Add(TInstanceBinding.Create(FType, TValue.From(Instance)));
+end;
+
+procedure TProtoBinder.ToInstance(const Instance: IInterface);
+begin
+  FBindings.Add(TInstanceBinding.Create(FType, TValue.From(Instance)));
+end;
+
+function TProtoBinder.ToType(const AType: TClass): IScopper;
+var
+  B: IBindingRegistry;
+begin
+  if FType.RttiType.IsInstance then
+    B := TClassBinding.Create(FType.RttiType, AType)
+  else
+    B := TInterfaceBinding.Create(FType.RttiType, AType);
+
+  Result := B as IScopper;
+  FBindings.Add(B);
+end;
+
+{ TInstanceBinding }
+
+constructor TInstanceBinding.Create(const AType: ITypeInformation;
+  const Instance: TValue);
+begin
+  FType := AType;
+  FInstance := Instance;
+end;
+
+function TInstanceBinding.TryBuild(Info: ITypeInformation;
+  InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+begin
+  if Info.RttiType.Equals(FType.RttiType) then
+  begin
+    Value := FInstance;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+{ TAbstractConcreteTypeBinding }
+
+constructor TAbstractConcreteTypeBinding.Create(const AType: TRttiType; const AConcreteType: TClass);
+begin
+  FContext := TRttiContext.Create;
+  FType := AType;
+  FConcreteType := FContext.GetType(AConcreteType);
+  FScope := TDefaultScope;
+end;
+
+destructor TAbstractConcreteTypeBinding.Destroy;
+begin
+  FContext.Free;
+  inherited;
+end;
+
+procedure TAbstractConcreteTypeBinding.InScope(const ScopeClass: TScopeClass);
+begin
+  FScope := ScopeClass;
+end;
+
+function TAbstractConcreteTypeBinding.TryBuild(Info: ITypeInformation;
+  InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+begin
+  if Accept(Info) then
+  begin
+    Value := InstanceResolver.ResolveType(Info.RttiType, FConcreteType.AsInstance, FScope);
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+{ TClassBinding }
+
+function TClassBinding.Accept(const Info: ITypeInformation): Boolean;
+begin
+  Result := Info.RttiType.IsInstance and FType.Equals(Info.RttiType);
+end;
+
+{ TInterfaceBinding }
+
+function TInterfaceBinding.Accept(const Info: ITypeInformation): Boolean;
+  function CompareGuids: Boolean;
+  begin
+    Result := IsEqualGUID(TRttiInterfaceType(Info.RttiType).GUID, TRttiInterfaceType(FType).GUID);
+  end;
+
+begin
+  Result := (Info.RttiType is TRttiInterfaceType) and CompareGuids;
 end;
 
 initialization

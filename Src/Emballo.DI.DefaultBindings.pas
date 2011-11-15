@@ -12,16 +12,16 @@ type
   IsDebugging = class(TCustomAttribute)
   end;
 
-  TDefaultBindings = class(TModule)
+  TDefaultModule = class(TModule)
   public
     procedure Configure; override;
   end;
 
 implementation
 
-{ TDefaultBindings }
+{ TDefaultModule }
 
-procedure TDefaultBindings.Configure;
+procedure TDefaultModule.Configure;
 begin
   inherited;
   BindConstant(ParamStr(0)).ToAttribute(AppPath);

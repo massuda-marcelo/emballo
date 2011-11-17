@@ -390,6 +390,8 @@ begin
     Injector.FInjector := Self;
     TValue.Make(@Injector, TypeInfo(TInjector), Value);
     Result := True;
+    ReleaseProc := TReleaseProcedures.DO_NOTHING();
+    Exit;
   end;
 
   for Module in FModules do
@@ -785,9 +787,7 @@ end;
 
 class function TReleaseProcedures.DO_NOTHING: TReleaseProcedure;
 begin
-  Result := procedure(const Obj: TObject)
-  begin
-  end;
+  Result := Nil;
 end;
 
 class function TReleaseProcedures.FREE: TReleaseProcedure;

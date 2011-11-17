@@ -6,6 +6,14 @@ uses
   Rtti, Generics.Collections, Emballo.General, TypInfo;
 
 type
+  TReleaseProcedure = reference to procedure(const Obj: TObject);
+
+  TReleaseProcedures = class
+  public
+    class function FREE: TReleaseProcedure;
+    class function DO_NOTHING: TReleaseProcedure;
+  end;
+
   TScope = class abstract
   protected
     function Get(const Info: TRttiType): TValue; virtual; abstract;
@@ -19,18 +27,27 @@ type
   ITypeInformation = interface
     ['{ADA7CF05-4489-42A9-9F79-16632CECF778}']
     function GetRttiType: TRttiType;
+    function GetName: String;
+    function GetParent: TRttiObject;
 
     property RttiType: TRttiType read GetRttiType;
+    property Parent: TRttiObject read GetParent;
+    property Name: String read GetName;
   end;
 
   TTypeInformation = class(TInterfacedObject, ITypeInformation)
   private
     FRttiType: TRttiType;
+    FName: String;
+    FParent: TRttiObject;
 
     function GetRttiType: TRttiType;
+    function GetName: String;
+    function GetParent: TRttiObject;
+    constructor Create(const AType: TRttiType; const AName: String; const AParent: TRttiObject);
   public
-    constructor Create(const Info: TRttiParameter); overload;
-    constructor Create(const Info: TRttiType); overload;
+    class function FromType(const AType: TRttiType): ITypeInformation;
+    class function Fromparameter(const AParameter: TRttiParameter): ITypeInformation;
   end;
 
   TDefaultScope = class(TScope)
@@ -60,7 +77,7 @@ type
 
   ITypeFactory = interface
     ['{D3FB304F-085A-4041-A5D8-B8EA09554D48}']
-    function TryBuild(Info: ITypeInformation; InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+    function TryBuild(Info: ITypeInformation; InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
   end;
 
   IConstantBinder = interface
@@ -106,7 +123,7 @@ type
   public
     constructor Create(const AType: TRttiType; const AConcreteType: TClass);
     function TryBuild(Info: ITypeInformation;
-      InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+      InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
     procedure InScope(const ScopeClass: TScopeClass);
     destructor Destroy; override;
   end;
@@ -138,7 +155,7 @@ type
     FInstance: TValue;
   public
     function TryBuild(Info: ITypeInformation;
-      InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+      InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
     constructor Create(const AType: ITypeInformation; const Instance: TValue);
   end;
 
@@ -158,7 +175,7 @@ type
     function GetScopeClass: TScopeClass;
     function GetInstanceAsObject(const Injector: IInjector): TObject;
     function GetInstanceAsInterface(const Injector: IInjector): IInterface;
-    function TryBuild(Info: ITypeInformation; InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+    function TryBuild(Info: ITypeInformation; InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
     procedure ToAttribute(const AttributeClass: TCustomAttributeClass);
   public
     function ToType(const AClass: TClass): IScopper;
@@ -182,6 +199,7 @@ type
     property Bindings[Index: Integer]: IBindingRegistry read GetBinding;
     function Bind(const AClass: TClass): IProtoBinder; overload;
     function Bind(const AGUID: TGUID): IProtoBinder; overload;
+    procedure RegisterBinding(const BindingRegistry: IBindingRegistry);
     function BindConstant(const Value: String): IConstantBinder; overload;
     function BindConstant(const Value: Boolean): IConstantBinder; overload;
     procedure Configure; virtual; abstract;
@@ -197,13 +215,20 @@ type
 
   TInjectorImpl = class(TInterfacedObject, IInjector, IInstanceResolver)
   private
+    type
+      TDependencyRec = record
+        Dep: TObject;
+        ReleaseProc: TReleaseProcedure;
+        constructor Create(const Dep: TObject; const ReleaseProc: TReleaseProcedure);
+      end;
+  private
     FModules: array of TModule;
     FScopes: TDictionary<TScopeClass, TScope>;
     FImplicitBindings: TList<IBindingRegistry>;
     FCtx: TRttiContext;
     function Instantiate(const AClass: TClass): TObject;
     function GetScope(const ScopeClass: TScopeClass): TScope;
-    function Resolve(Info: ITypeInformation; out Value: TValue): Boolean;
+    function Resolve(Info: ITypeInformation; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
     function ResolveType(const RequestedType: TRttiType; const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass): TValue;
     function GetInstance(const Info: TRttiType): TValue;
   public
@@ -258,8 +283,10 @@ begin
 end;
 
 function TInjectorImpl.GetInstance(const Info: TRttiType): TValue;
+var
+  ReleaseProc: TReleaseProcedure;
 begin
-  Resolve(TTypeInformation.Create(Info), Result);
+  Resolve(TTypeInformation.FromType(Info), Result, ReleaseProc);
 end;
 
 function TInjectorImpl.GetScope(const ScopeClass: TScopeClass): TScope;
@@ -290,22 +317,28 @@ var
   Args: TArray<TRttiParameter>;
   i: Integer;
   SC: TSynteticClass;
-  ObjectsToFree: TList<TObject>;
+  ObjectsToFree: TList<TDependencyRec>;
   ParamIntf: IInterface;
   Aux: Pointer;
+  ReleaseProc: TReleaseProcedure;
   Curr: TClass;
 begin
   SC := TSynteticClass.Create(AClass.ClassName + '_EnhancedByEmballo', AClass, SizeOf(Pointer), Nil, True);
   SC.Finalizer := procedure(const Instance: TObject)
   var
     Data: Pointer;
-    List: TList<TObject>;
-    O: TObject;
+    List: TList<TDependencyRec>;
+    O: TDependencyRec;
+    i: Integer;
   begin
     Data := GetAditionalData(Instance);
-    List := TList<TObject>(Data^);
-    for O in List do
-      O.Free;
+    List := TList<TDependencyRec>(Data^);
+    for i := 0 to List.Count - 1 do
+    begin
+      O := List[i];
+      if Assigned(O.ReleaseProc) then
+        O.ReleaseProc(O.Dep);
+    end;
 
     List.Free;
   end;
@@ -317,16 +350,16 @@ begin
     begin
       if M.IsConstructor then
       begin
-        ObjectsToFree := TList<TObject>.Create;
+        ObjectsToFree := TList<TDependencyRec>.Create;
         Args := M.GetParameters;
         SetLength(ArgsValues, Length(Args));
         for i := 0 to Length(Args) - 1 do
         begin
-          Resolve(TTypeInformation.Create(Args[i]), ArgsValues[i]);
+          Resolve(TTypeInformation.FromParameter(Args[i]), ArgsValues[i], ReleaseProc);
           if Args[i].ParamType is TRttiInterfaceType then
             FixInterfaceValue(TRttiInterfaceType(Args[i].ParamType), ArgsValues[i])
           else if Args[i].ParamType.IsInstance then
-            ObjectsToFree.Add(ArgsValues[i].AsObject);
+            ObjectsToFree.Add(TDependencyRec.Create(ArgsValues[i].AsObject, ReleaseProc));
         end;
 
         Result := M.Invoke(SC.Metaclass, ArgsValues).AsObject;
@@ -339,11 +372,11 @@ begin
 end;
 
 function TInjectorImpl.Resolve(Info: ITypeInformation;
-  out Value: TValue): Boolean;
+  out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
 
   procedure TryWith(const Factory: ITypeFactory);
   begin
-    Result := Factory.TryBuild(Info, Self, Value);
+    Result := Factory.TryBuild(Info, Self, Value, ReleaseProc);
   end;
 var
   Module: TModule;
@@ -369,6 +402,8 @@ begin
   if Info.RttiType.IsInstance then
   begin
     Value := ResolveType(Info.RttiType, Info.RttiType.AsInstance, TDefaultScope);
+    ReleaseProc := TReleaseProcedures.FREE();
+
     Result := True;
     Exit;
   end;
@@ -401,12 +436,12 @@ end;
 
 function TModule.Bind(const AClass: TClass): IProtoBinder;
 begin
-  Result := TProtoBinder.Create(TTypeInformation.Create(FRttiContext.GetType(AClass)), FBindings);
+  Result := TProtoBinder.Create(TTypeInformation.FromType(FRttiContext.GetType(AClass)), FBindings);
 end;
 
 function TModule.Bind(const AGUID: TGUID): IProtoBinder;
 begin
-  Result := TProtoBinder.Create(TTypeInformation.Create(GetRttiTypeFromGUID(FRttiContext, AGUID)), FBindings);
+  Result := TProtoBinder.Create(TTypeInformation.FromType(GetRttiTypeFromGUID(FRttiContext, AGUID)), FBindings);
 end;
 
 function TModule.BindConstant(const Value: Boolean): IConstantBinder;
@@ -435,6 +470,11 @@ end;
 function TModule.GetBinding(Index: Integer): IBindingRegistry;
 begin
   Result := FBindings[Index];
+end;
+
+procedure TModule.RegisterBinding(const BindingRegistry: IBindingRegistry);
+begin
+  FBindings.Add(BindingRegistry);
 end;
 
 function TModule._BindConstant<T>(const Value: T): IConstantBinder;
@@ -527,11 +567,12 @@ begin
 end;
 
 function TBindingRegistry.TryBuild(Info: ITypeInformation;
-  InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+  InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
 begin
   if (FKind = bkConstantBinding) and (Info.RttiType.Handle = FValue.TypeInfo) then
   begin
     Value := FValue;
+    ReleaseProc := Nil;
     Result := True;
     Exit;
   end;
@@ -576,14 +617,34 @@ end;
 
 { TTypeInformation }
 
-constructor TTypeInformation.Create(const Info: TRttiParameter);
+constructor TTypeInformation.Create(const AType: TRttiType; const AName: String;
+  const AParent: TRttiObject);
 begin
-  FRttiType := Info.ParamType;
+  FRttiType := AType;
+  FName := AName;
+  FParent := AParent;
 end;
 
-constructor TTypeInformation.Create(const Info: TRttiType);
+class function TTypeInformation.Fromparameter(
+  const AParameter: TRttiParameter): ITypeInformation;
 begin
-  FRttiType := Info;
+  Result := TTypeInformation.Create(AParameter.ParamType, AParameter.Name, AParameter.Parent);
+end;
+
+class function TTypeInformation.FromType(
+  const AType: TRttiType): ITypeInformation;
+begin
+  Result := TTypeInformation.Create(AType, '', Nil);
+end;
+
+function TTypeInformation.GetName: String;
+begin
+  Result := FName;
+end;
+
+function TTypeInformation.GetParent: TRttiObject;
+begin
+  Result := FParent;
 end;
 
 function TTypeInformation.GetRttiType: TRttiType;
@@ -633,11 +694,12 @@ begin
 end;
 
 function TInstanceBinding.TryBuild(Info: ITypeInformation;
-  InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+  InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
 begin
   if Info.RttiType.Equals(FType.RttiType) then
   begin
     Value := FInstance;
+    ReleaseProc := TReleaseProcedures.DO_NOTHING();
     Result := True;
   end
   else
@@ -666,11 +728,12 @@ begin
 end;
 
 function TAbstractConcreteTypeBinding.TryBuild(Info: ITypeInformation;
-  InstanceResolver: IInstanceResolver; out Value: TValue): Boolean;
+  InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
 begin
   if Accept(Info) then
   begin
     Value := InstanceResolver.ResolveType(Info.RttiType, FConcreteType.AsInstance, FScope);
+    ReleaseProc := TReleaseProcedures.FREE();
     Result := True;
   end
   else
@@ -694,6 +757,32 @@ function TInterfaceBinding.Accept(const Info: ITypeInformation): Boolean;
 
 begin
   Result := (Info.RttiType is TRttiInterfaceType) and CompareGuids;
+end;
+
+{ TReleaseProcedures }
+
+class function TReleaseProcedures.DO_NOTHING: TReleaseProcedure;
+begin
+  Result := procedure(const Obj: TObject)
+  begin
+  end;
+end;
+
+class function TReleaseProcedures.FREE: TReleaseProcedure;
+begin
+  Result := procedure(const Obj: TObject)
+  begin
+    Obj.Free;
+  end;
+end;
+
+{ TInjectorImpl.TDependencyRec }
+
+constructor TInjectorImpl.TDependencyRec.Create(const Dep: TObject;
+  const ReleaseProc: TReleaseProcedure);
+begin
+  Self.Dep := Dep;
+  Self.ReleaseProc := ReleaseProc;
 end;
 
 initialization

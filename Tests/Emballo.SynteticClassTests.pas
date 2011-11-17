@@ -41,6 +41,8 @@ type
     procedure AccessToAditionalInstanceDataShouldNotCorruptTheObject;
     procedure FreeSynteticClassWhenInstanceIsFreedIfOptionIsSet;
     procedure TestAditionalData;
+    procedure TestSameTypeInfo;
+    procedure TestVTable;
   end;
 
 implementation
@@ -229,6 +231,23 @@ begin
   finally
     SynteticClass.Free;
   end;
+end;
+
+procedure TSynteticClassTests.TestSameTypeInfo;
+var
+  SynteticClass: TSynteticClass;
+begin
+  SynteticClass := TSynteticClass.Create('TSynteticSubClass', TBaseClass, 0, Nil, False);
+  try
+    CheckTrue(SynteticClass.Metaclass.ClassInfo = TBaseClass.ClassInfo);
+  finally
+    SynteticClass.Free;
+  end;
+end;
+
+procedure TSynteticClassTests.TestVTable;
+begin
+
 end;
 
 initialization

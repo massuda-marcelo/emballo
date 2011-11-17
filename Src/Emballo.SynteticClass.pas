@@ -156,6 +156,7 @@ var
   VmtEntries: TArray<TVmtEntry>;
   NumVmtEntries: Integer;
   i: Integer;
+  Size: Integer;
 begin
   FFreeOnInstanceDestroy := FreeOnInstanceDestroy;
   VmtEntries := EnumerateVirtualMethods(Parent);
@@ -170,7 +171,7 @@ begin
 
   FClassRec.AdicionalInstanceSize := AditionalInstanceSize;
 
-  Move(ParentClassRec^, FClassRec.ClassRec, SizeOf(TClassRec));
+  Move(ParentClassRec^, FClassRec.ClassRec, SizeOf(TClassRec) + NumVmtEntries*SizeOf(Pointer));
   GetMem(FClassRec.ClassRec.Parent, SizeOf(Pointer));
   FClassRec.ClassRec.ClassName := @FClassName;
   FClassRec.ClassRec.InstanceSize := Parent.InstanceSize + AditionalInstanceSize +

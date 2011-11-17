@@ -71,8 +71,9 @@ end;
 procedure TInstanceBindingTests.TestTryBuild;
 var
   V: TValue;
+  ReleaseProc: TReleaseProcedure;
 begin
-  CheckTrue(FBinding.TryBuild(TTypeInformation.Create(FContext.GetType(TDependency)), Nil, V));
+  CheckTrue(FBinding.TryBuild(TTypeInformation.FromType(FContext.GetType(TDependency)), Nil, V, ReleaseProc));
   CheckEquals(TDependency, V.AsObject.ClassType);
   CheckTrue(FDependency = V.AsObject);
 end;

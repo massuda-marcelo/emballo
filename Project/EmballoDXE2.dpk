@@ -71,7 +71,6 @@ contains
   Emballo.TypeWrappers in '..\Src\Emballo.TypeWrappers.pas',
   Emballo.Mock.Mock in '..\Src\Emballo.Mock.Mock.pas',
   Emballo.Mock.MockInternalImpl in '..\Src\Emballo.Mock.MockInternalImpl.pas',
-  Emballo.DynamicProxy.DynamicProxyService in '..\Src\Emballo.DynamicProxy.DynamicProxyService.pas',
   Emballo.SynteticClass in '..\Src\Emballo.SynteticClass.pas',
   Emballo.DynamicProxy.MethodImpl in '..\Src\Emballo.DynamicProxy.MethodImpl.pas',
   Emballo.Mock.ExpectedMethodCall in '..\Src\Emballo.Mock.ExpectedMethodCall.pas',

@@ -21,16 +21,21 @@ unit Emballo.Services;
 interface
 
 uses
-  Emballo.DI, Emballo.Mock.Mock;
+  Emballo.DI, Emballo.Mock.Mock, Emballo.DynamicProxy.InvokationHandler;
 
 type
   EmballoServices = class
   public
     class function CreateInjector(const Modules: array of TModule): TInjector;
     class function Mock<T:class>: TMock<T>;
+    class function Proxy<T:class>(const InvokationHandler: TInvokationHandlerAnonMethod): T; overload;
+    class function Proxy<T:class>(const InvokationHandler: TInvokationHandlerMethod): T; overload;
   end;
 
 implementation
+
+uses
+  Emballo.DynamicProxy.Impl;
 
 { EmballoServices }
 
@@ -42,6 +47,22 @@ end;
 class function EmballoServices.Mock<T>: TMock<T>;
 begin
   Result := TMock<T>.Create;
+end;
+
+class function EmballoServices.Proxy<T>(const InvokationHandler: TInvokationHandlerAnonMethod): T;
+var
+  Proxy: TDynamicProxy;
+begin
+  Proxy := TDynamicProxy.Create(TClass(T), Nil, InvokationHandler, Nil);
+  Result := T(Proxy.ProxyObject);
+end;
+
+class function EmballoServices.Proxy<T>(const InvokationHandler: TInvokationHandlerMethod): T;
+var
+  Proxy: TDynamicProxy;
+begin
+  Proxy := TDynamicProxy.Create(TClass(T), Nil, InvokationHandler, Nil);
+  Result := T(Proxy.ProxyObject);
 end;
 
 end.

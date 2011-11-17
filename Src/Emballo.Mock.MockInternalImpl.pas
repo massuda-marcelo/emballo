@@ -63,7 +63,7 @@ implementation
 
 uses
   TypInfo,
-  Emballo.DynamicProxy.DynamicProxyService,
+  Emballo.Services,
   Emballo.Mock.DummyMethodAction,
   Emballo.Mock.UnexpectedUsage,
   Emballo.Mock.RaiseExceptionClassMethodAction,
@@ -106,7 +106,7 @@ begin
 
   FState := msCheckingUsage;
 
-  FObject := DynamicProxyService.Get<T>(InvokationHandler);
+  FObject := EmballoServices.Proxy<T>(InvokationHandler);
 end;
 
 procedure TMockInternal<T>.DefineExpectation(const Method: TRttiMethod;

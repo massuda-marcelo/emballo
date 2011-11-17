@@ -111,7 +111,6 @@
 			<DCCReference Include="..\Src\Emballo.TypeWrappers.pas"/>
 			<DCCReference Include="..\Src\Emballo.Mock.Mock.pas"/>
 			<DCCReference Include="..\Src\Emballo.Mock.MockInternalImpl.pas"/>
-			<DCCReference Include="..\Src\Emballo.DynamicProxy.DynamicProxyService.pas"/>
 			<DCCReference Include="..\Src\Emballo.SynteticClass.pas"/>
 			<DCCReference Include="..\Src\Emballo.DynamicProxy.MethodImpl.pas"/>
 			<DCCReference Include="..\Src\Emballo.Mock.ExpectedMethodCall.pas"/>

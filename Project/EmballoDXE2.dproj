@@ -109,7 +109,6 @@
 			<DCCReference Include="..\Src\Emballo.Persistence.Mapping.AttributeMapping.pas"/>
 			<DCCReference Include="..\Src\Emballo.Persistence.Mapping.ClassMapping.pas"/>
 			<DCCReference Include="..\Src\Emballo.TypeWrappers.pas"/>
-			<DCCReference Include="..\Src\Emballo.Mock.MockService.pas"/>
 			<DCCReference Include="..\Src\Emballo.Mock.Mock.pas"/>
 			<DCCReference Include="..\Src\Emballo.Mock.MockInternalImpl.pas"/>
 			<DCCReference Include="..\Src\Emballo.DynamicProxy.DynamicProxyService.pas"/>

@@ -69,7 +69,6 @@ contains
   Emballo.Persistence.Mapping.AttributeMapping in '..\Src\Emballo.Persistence.Mapping.AttributeMapping.pas',
   Emballo.Persistence.Mapping.ClassMapping in '..\Src\Emballo.Persistence.Mapping.ClassMapping.pas',
   Emballo.TypeWrappers in '..\Src\Emballo.TypeWrappers.pas',
-  Emballo.Mock.MockService in '..\Src\Emballo.Mock.MockService.pas',
   Emballo.Mock.Mock in '..\Src\Emballo.Mock.Mock.pas',
   Emballo.Mock.MockInternalImpl in '..\Src\Emballo.Mock.MockInternalImpl.pas',
   Emballo.DynamicProxy.DynamicProxyService in '..\Src\Emballo.DynamicProxy.DynamicProxyService.pas',

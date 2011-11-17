@@ -211,6 +211,7 @@ type
   public
     function GetInstance<T>: T;
     constructor Create(const Modules: array of TModule);
+    function IsInitialized: Boolean;
   end;
 
   TInjectorImpl = class(TInterfacedObject, IInjector, IInstanceResolver)
@@ -381,7 +382,15 @@ function TInjectorImpl.Resolve(Info: ITypeInformation;
 var
   Module: TModule;
   Binding: IBindingRegistry;
+  Injector: TInjector;
 begin
+  if Info.RttiType.Handle = TypeInfo(TInjector) then
+  begin
+    Injector.FInjector := Self;
+    TValue.Make(@Injector, TypeInfo(TInjector), Value);
+    Result := True;
+  end;
+
   for Module in FModules do
   begin
     for Binding in Module.FBindings do
@@ -605,6 +614,11 @@ begin
   finally
     Ctx.Free;
   end;
+end;
+
+function TInjector.IsInitialized: Boolean;
+begin
+  Result := Assigned(FInjector);
 end;
 
 { TDefaultScope }

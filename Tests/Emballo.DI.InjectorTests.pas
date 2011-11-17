@@ -14,6 +14,7 @@ type
   TInjectorTests = class(TTestCase)
   published
     procedure InstantiateWithDependencies;
+    procedure InjectInjectorItSelf;
   end;
 
   TSeccondClass = class
@@ -35,6 +36,12 @@ type
     constructor Create(const SeccondClass: TSeccondClass; const Foo: IFoo);
   end;
 
+  TClassThatDependsOnTheInjector = class
+  public
+    FInjector: TInjector;
+    constructor Create(const Injector: TInjector);
+  end;
+
 implementation
 
 { TFirstClass }
@@ -45,6 +52,21 @@ begin
 end;
 
 { TInjectorTests }
+
+procedure TInjectorTests.InjectInjectorItSelf;
+var
+  Injector: TInjector;
+  Instance: TClassThatDependsOnTheInjector;
+begin
+  Injector := TInjector.Create([]);
+  Instance := Injector.GetInstance<TClassThatDependsOnTheInjector>;
+  try
+    CheckNotNull(Instance);
+    CheckTrue(Instance.FInjector.IsInitialized);
+  finally
+    Instance.Free;
+  end;
+end;
 
 procedure TInjectorTests.InstantiateWithDependencies;
 var
@@ -74,6 +96,13 @@ procedure TTestModule.Configure;
 begin
   inherited;
   Bind(IFoo).ToType(TFoo);
+end;
+
+{ TClassThatDependsOnTheInjector }
+
+constructor TClassThatDependsOnTheInjector.Create(const Injector: TInjector);
+begin
+  FInjector := Injector;
 end;
 
 initialization

@@ -209,7 +209,8 @@ type
   private
     FInjector: IInjector;
   public
-    function GetInstance<T>: T;
+    function GetInstance<T>: T; overload;
+    function GetInstance(const AInfo: PTypeInfo): TValue; overload;
     constructor Create(const Modules: array of TModule);
     function IsInitialized: Boolean;
   end;
@@ -596,24 +597,31 @@ begin
   FInjector := TInjectorImpl.Create(Modules);
 end;
 
+function TInjector.GetInstance(const AInfo: PTypeInfo): TValue;
+var
+  Info: TRttiType;
+  Ctx: TRttiContext;
+begin
+  Ctx := TRttiContext.Create;
+  try
+    Info := Ctx.GetType(AInfo);
+    Result := FInjector.GetInstance(Info);
+  finally
+    Ctx.Free;
+  end;
+end;
+
 function TInjector.GetInstance<T>: T;
 var
   Info: TRttiType;
   Ctx: TRttiContext;
   V: TValue;
 begin
-  Ctx := TRttiContext.Create;
-  try
-    Info := Ctx.GetType(TypeInfo(T));
-    V := FInjector.GetInstance(Info);
-    if Info.IsInstance then
-      Result := T(V.AsObject)
-    else if Info is TRttiInterfaceType then
-      Supports(V.AsInterface, TRttiInterfaceType(Info).GUID, Result);
-
-  finally
-    Ctx.Free;
-  end;
+  V := GetInstance(TypeInfo(T));
+  if V.TypeInfo.Kind = tkClass then
+    Result := T(V.AsObject)
+  else
+    Supports(V.AsInterface, V.TypeData.Guid, Result);
 end;
 
 function TInjector.IsInitialized: Boolean;

@@ -15,6 +15,7 @@ type
   published
     procedure InstantiateWithDependencies;
     procedure InjectInjectorItSelf;
+    procedure GetInstanceInterface;
   end;
 
   TSeccondClass = class
@@ -24,10 +25,11 @@ type
 
   IFoo = interface
     ['{58DB334F-1C83-4062-99E4-2AB37EF8F280}']
+    procedure DoSomething;
   end;
 
   TFoo = class(TInterfacedObject, IFoo)
-
+    procedure DoSomething;
   end;
 
   TFirstClass = class
@@ -52,6 +54,16 @@ begin
 end;
 
 { TInjectorTests }
+
+procedure TInjectorTests.GetInstanceInterface;
+var
+  Injector: TInjector;
+  Foo: IFoo;
+begin
+  Injector := TInjector.Create([TTestModule.Create]);
+  Foo := Injector.GetInstance<IFoo>;
+  Foo.DoSomething;
+end;
 
 procedure TInjectorTests.InjectInjectorItSelf;
 var
@@ -103,6 +115,13 @@ end;
 constructor TClassThatDependsOnTheInjector.Create(const Injector: TInjector);
 begin
   FInjector := Injector;
+end;
+
+{ TFoo }
+
+procedure TFoo.DoSomething;
+begin
+
 end;
 
 initialization

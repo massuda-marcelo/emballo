@@ -619,11 +619,19 @@ var
   Ctx: TRttiContext;
   V: TValue;
 begin
-  V := GetInstance(TypeInfo(T));
-  if V.TypeInfo.Kind = tkClass then
-    Result := T(V.AsObject)
-  else
-    Supports(V.AsInterface, V.TypeData.Guid, Result);
+  Ctx := TRttiContext.Create;
+  try
+    V := GetInstance(TypeInfo(T));
+    if V.TypeInfo.Kind = tkClass then
+      Result := T(V.AsObject)
+    else
+    begin
+      Info := Ctx.GetType(TypeInfo(T));
+      Supports(V.AsInterface, (Info as TRttiInterfaceType).Guid, Result)
+    end;
+  finally
+    Ctx.Free;
+  end;
 end;
 
 function TInjector.IsInitialized: Boolean;

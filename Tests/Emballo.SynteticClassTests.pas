@@ -24,6 +24,24 @@ uses
   TestFramework;
 
 type
+  ISomeIntf = interface
+    ['{C24CC8B5-BBE9-48CC-80D4-0367451D7329}']
+    function GetX: Integer;
+    procedure SetX(const X: Integer);
+  end;
+
+  ISomeSubIntf = interface(ISomeIntf)
+    ['{74B68341-93F5-4625-AF92-4CFD3EA90E53}']
+  end;
+
+  TBaseClassWithIntf = class(TInterfacedObject, ISomeSubIntf)
+  private
+    FX: Integer;
+  public
+    function GetX: Integer;
+    procedure SetX(const X: Integer);
+  end;
+
   TBaseClass = class
     Test: Integer;
   end;
@@ -43,6 +61,7 @@ type
     procedure TestAditionalData;
     procedure TestSameTypeInfo;
     procedure TestVTable;
+    procedure InterfacesImplementedOnBaseClass;
   end;
 
 implementation
@@ -130,6 +149,23 @@ begin
   SynteticClass := TSynteticClass.Create('TSynteticSubClass', TBaseClass, 0, Guids, False);
   try
     CheckEquals(TBaseClass.InstanceSize + 2*SizeOf(Pointer), SynteticClass.Metaclass.InstanceSize, 'SynteticClass'' Instance size should consider the aditional instance data size');
+  finally
+    SynteticClass.Free;
+  end;
+end;
+
+procedure TSynteticClassTests.InterfacesImplementedOnBaseClass;
+var
+  SynteticClass: TSynteticClass;
+  Inst: TObject;
+  Intf: ISomeSubIntf;
+begin
+  SynteticClass := TSynteticClass.Create('TSynteticSubClass', TBaseClassWithIntf, 0, Nil, False);
+  try
+    Inst := SynteticClass.Metaclass.Create;
+    Supports(Inst, ISomeSubIntf, Intf);
+    Intf.SetX(123);
+    CheckEquals(123, Intf.GetX);
   finally
     SynteticClass.Free;
   end;
@@ -248,6 +284,18 @@ end;
 procedure TSynteticClassTests.TestVTable;
 begin
 
+end;
+
+{ TBaseClassWithIntf }
+
+function TBaseClassWithIntf.GetX: Integer;
+begin
+  Result := FX;
+end;
+
+procedure TBaseClassWithIntf.SetX(const X: Integer);
+begin
+  FX := X;
 end;
 
 initialization

@@ -121,10 +121,13 @@ var
   Intf: TArray<PTypeInfo>;
   InvokationHandler: TInvokationHandlerAnonMethod;
   TestInterface: ITestInterface;
+  Called: Boolean;
 begin
+  Called := False;
   InvokationHandler := procedure(const Method: TRttiMethod;
     const Parameters: TArray<IParameter>; const Result: IParameter)
     begin
+      Called := True;
     end;
 
   SetLength(Intf, 1);
@@ -132,6 +135,7 @@ begin
   P := TDynamicProxy.Create(Nil, Intf, InvokationHandler, Nil);
   Supports(P.ProxyObject, ITestInterface, TestInterface);
   TestInterface.Foo;
+  CheckTrue(Called);
 end;
 
 { TTestClassNonVirtual }

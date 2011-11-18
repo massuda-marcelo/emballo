@@ -27,7 +27,7 @@ type
   EmballoServices = class
   public
     class function CreateInjector(const Modules: array of TModule): TInjector;
-    class function Mock<T:class>: TMock<T>;
+    class function Mock<T>: TMock<T>;
     class function Proxy<T:class>(const InvokationHandler: TInvokationHandlerAnonMethod): T; overload;
     class function Proxy<T:class>(const InvokationHandler: TInvokationHandlerMethod): T; overload;
   end;

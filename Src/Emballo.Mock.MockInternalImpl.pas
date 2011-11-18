@@ -35,12 +35,14 @@ uses
 type
   TMockState = (msCheckingUsage, msWaitingExpectation, msDefiningExpectation);
 
-  TMockInternal<T:class> = class(TInterfacedObject, IMockInternal<T>, IWhen<T>)
+  TMockInternal<T> = class(TInterfacedObject, IMockInternal<T>, IWhen<T>)
   private
-    FObject: T;
+    FObject: TValue;
+    FInfo: TRttiType;
     FState: TMockState;
     FExpectedCalls: TList<TExpectedMethodCall>;
     FCurrentExpectation: TExpectedMethodCall;
+    FCtx: TRttiContext;
     function IsMatchingCall(const Expected: TExpectedMethodCall; const Method: TRttiMethod;
       const Parameters: array of IParameter): Boolean;
     procedure DefineExpectation(const Method: TRttiMethod; const Parameters: array of IParameter);
@@ -63,12 +65,11 @@ implementation
 
 uses
   TypInfo,
-  Emballo.Services,
   Emballo.Mock.DummyMethodAction,
   Emballo.Mock.UnexpectedUsage,
   Emballo.Mock.RaiseExceptionClassMethodAction,
   Emballo.Mock.ReturnValueMethodAction, Emballo.Mock.ParameterMatcher,
-  Emballo.Mock.EqualsParameterMatcher;
+  Emballo.Mock.EqualsParameterMatcher, Emballo.DynamicProxy.Impl;
 
 { TMockInternal<T> }
 
@@ -83,7 +84,13 @@ end;
 constructor TMockInternal<T>.Create;
 var
   InvokationHandler: TInvokationHandlerAnonMethod;
+  BaseClass: TClass;
+  Intfs: TArray<PTypeInfo>;
+  Intf: IInterface;
+  Obj: TObject;
 begin
+  FCtx := TRttiContext.Create;
+
   FExpectedCalls := TList<TExpectedMethodCall>.Create;
 
   InvokationHandler := procedure(const Method: TRttiMethod;
@@ -106,7 +113,27 @@ begin
 
   FState := msCheckingUsage;
 
-  FObject := EmballoServices.Proxy<T>(InvokationHandler);
+  FInfo := FCtx.GetType(TypeInfo(T));
+  if FInfo.IsInstance then
+  begin
+    BaseClass := FInfo.AsInstance.MetaclassType;
+    SetLength(Intfs, 0);
+  end
+  else
+  begin
+    BaseClass := TInterfacedObject;
+    SetLength(Intfs, 1);
+    Intfs[0] := FInfo.Handle;
+  end;
+
+  Obj := TDynamicProxy.Create(BaseClass, Intfs, InvokationHandler, Nil).ProxyObject;
+  if FInfo.IsInstance then
+    TValue.Make(@Obj, FInfo.Handle, FObject)
+  else
+  begin
+    Supports(Obj, IInterface, Intf);
+    TValue.Make(@Intf, FInfo.Handle, FObject);
+  end;
 end;
 
 procedure TMockInternal<T>.DefineExpectation(const Method: TRttiMethod;
@@ -137,7 +164,8 @@ destructor TMockInternal<T>.Destroy;
 var
   O: TExpectedMethodCall;
 begin
-  FObject.Free;
+  if FInfo.IsInstance then
+    FObject.AsObject.Free;
   for O in FExpectedCalls do
     O.Free;
   FExpectedCalls.Free;
@@ -150,8 +178,16 @@ begin
 end;
 
 function TMockInternal<T>.GetObject: T;
+var
+  Intf: Pointer;
 begin
-  Result := FObject;
+  if FInfo.IsInstance then
+    Result := T(FObject.AsObject)
+  else
+  begin
+    Supports(FObject.AsInterface, (FInfo as TRttiInterfaceType).GUID, Intf);
+    Move(Intf, Result, SizeOf(Pointer));
+  end;
 end;
 
 function TMockInternal<T>.IsMatchingCall(const Expected: TExpectedMethodCall;
@@ -179,7 +215,7 @@ end;
 
 function TMockInternal<T>.When: T;
 begin
-  Result := FObject;
+  Result := GetObject;
 end;
 
 function TMockInternal<T>.WillRaise(ExceptionClass: TExceptionClass): IWhen<T>;

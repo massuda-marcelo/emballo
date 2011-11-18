@@ -27,7 +27,7 @@ uses
 type
   TExceptionClass = class of Exception;
 
-  IMockInternal<T:class> = interface
+  IMockInternal<T> = interface
     ['{34CB781C-7C84-47A7-B829-35D3AA6DE766}']
 
     function GetObject: T;

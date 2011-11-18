@@ -27,7 +27,7 @@ uses
   Emballo.Mock.When;
 
 type
-  TMock<T:class> = record
+  TMock<T> = record
   private
     FInternal: IMockInternal<T>;
   public

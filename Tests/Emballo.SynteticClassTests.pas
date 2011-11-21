@@ -44,7 +44,16 @@ type
 
   TBaseClass = class
     Test: Integer;
+  protected
+    function GetTest: Integer; virtual; abstract;
   end;
+
+  TConcreteClass = class(TBaseClass)
+  protected
+    function GetTest: Integer; override;
+  end;
+
+
 
   TSynteticClassTests = class(TTestCase)
   published
@@ -62,6 +71,7 @@ type
     procedure TestSameTypeInfo;
     procedure TestVTable;
     procedure InterfacesImplementedOnBaseClass;
+    procedure CallAbstractMethodsOfSynteticClassInstance;
   end;
 
 implementation
@@ -86,6 +96,25 @@ begin
       AditionalInstanceData^ := 20;
 
       CheckEquals(10, Instance.Test);
+    finally
+      Instance.Free;
+    end;
+  finally
+    SynteticClass.Free;
+  end;
+end;
+
+procedure TSynteticClassTests.CallAbstractMethodsOfSynteticClassInstance;
+var
+  SynteticClass: TSynteticClass;
+  Instance: TBaseClass;
+begin
+  SynteticClass := TSynteticClass.Create('TSynteticSubClass', TConcreteClass, 0, Nil, False);
+  try
+    Instance := SynteticClass.Metaclass.Create as TBaseClass;
+    try
+      Instance.Test := 10;
+      CheckEquals(10, Instance.GetTest);
     finally
       Instance.Free;
     end;
@@ -296,6 +325,13 @@ end;
 procedure TBaseClassWithIntf.SetX(const X: Integer);
 begin
   FX := X;
+end;
+
+{ TConcreteClass }
+
+function TConcreteClass.GetTest: Integer;
+begin
+  Result := Test;
 end;
 
 initialization

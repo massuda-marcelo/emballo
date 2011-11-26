@@ -91,6 +91,11 @@ type
     procedure InScope(const ScopeClass: TScopeClass);
   end;
 
+  IInstanceBindingConfigurer = interface
+    ['{946A8DC5-A74C-46C4-8583-5B7BBB28CFA7}']
+    procedure AndDontReleaseInstance;
+  end;
+
   IClassBinder = interface
     ['{420C04EF-5E8A-431B-8518-707EBF8E95A9}']
     function ToType(const AClass: TClass): IScopper;
@@ -107,8 +112,8 @@ type
 
   IProtoBinder = interface
     ['{6381FDA9-F512-4C16-9284-A3D4907CEBE0}']
-    procedure ToInstance(const Instance: TObject); overload;
-    procedure ToInstance(const Instance: IInterface); overload;
+    function ToInstance(const Instance: TObject): IInstanceBindingConfigurer; overload;
+    function ToInstance(const Instance: IInterface): IInstanceBindingConfigurer; overload;
     function ToType(const AType: TClass): IScopper;
   end;
 
@@ -142,21 +147,24 @@ type
   private
     FBindings: TList<IBindingRegistry>;
     FType: ITypeInformation;
-    procedure ToInstance(const Instance: TObject); overload;
-    procedure ToInstance(const Instance: IInterface); overload;
+    function ToInstance(const Instance: TObject): IInstanceBindingConfigurer; overload;
+    function ToInstance(const Instance: IInterface): IInstanceBindingConfigurer; overload;
     function ToType(const AType: TClass): IScopper;
   public
     constructor Create(const AType: ITypeInformation; const Bindings: TList<IBindingRegistry>);
   end;
 
-  TInstanceBinding = class(TInterfacedObject, IBindingRegistry)
+  TInstanceBinding = class(TInterfacedObject, IBindingRegistry, IInstanceBindingConfigurer)
   private
     FType: ITypeInformation;
     FInstance: TValue;
+    FReleaseInstance: Boolean;
   public
     function TryBuild(Info: ITypeInformation;
       InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
     constructor Create(const AType: ITypeInformation; const Instance: TValue);
+    procedure AndDontReleaseInstance;
+    destructor Destroy; override;
   end;
 
   TBindingRegistry = class(TInterfacedObject, IBindingRegistry, IClassBinder, IConstantBinder, IScopper)
@@ -693,14 +701,16 @@ begin
   FBindings := Bindings;
 end;
 
-procedure TProtoBinder.ToInstance(const Instance: TObject);
+function TProtoBinder.ToInstance(const Instance: TObject): IInstanceBindingConfigurer;
 begin
-  FBindings.Add(TInstanceBinding.Create(FType, TValue.From(Instance)));
+  Result := TInstanceBinding.Create(FType, TValue.From(Instance));
+  FBindings.Add(Result as IBindingRegistry);
 end;
 
-procedure TProtoBinder.ToInstance(const Instance: IInterface);
+function TProtoBinder.ToInstance(const Instance: IInterface): IInstanceBindingConfigurer;
 begin
-  FBindings.Add(TInstanceBinding.Create(FType, TValue.From(Instance)));
+  Result := TInstanceBinding.Create(FType, TValue.From(Instance));
+  FBindings.Add(Result as IBindingRegistry);
 end;
 
 function TProtoBinder.ToType(const AType: TClass): IScopper;
@@ -718,11 +728,24 @@ end;
 
 { TInstanceBinding }
 
+procedure TInstanceBinding.AndDontReleaseInstance;
+begin
+  FReleaseInstance := False;
+end;
+
 constructor TInstanceBinding.Create(const AType: ITypeInformation;
   const Instance: TValue);
 begin
   FType := AType;
   FInstance := Instance;
+  FReleaseInstance := True;
+end;
+
+destructor TInstanceBinding.Destroy;
+begin
+  if FReleaseInstance and (FInstance.TypeInfo.Kind = tkClass) then
+    FInstance.AsObject.Free;
+  inherited;
 end;
 
 function TInstanceBinding.TryBuild(Info: ITypeInformation;

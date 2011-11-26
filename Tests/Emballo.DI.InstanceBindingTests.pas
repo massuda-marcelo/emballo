@@ -10,7 +10,15 @@ type
 
   end;
 
-  TTestModule = class(TModule)
+  TTestModuleReleaseInstance = class(TModule)
+  private
+    FDependency: TDependency;
+  public
+    procedure Configure; override;
+    constructor Create(const Dependency: TDependency);
+  end;
+
+  TTestModuleDontReleaseInstance = class(TModule)
   private
     FDependency: TDependency;
   public
@@ -21,27 +29,25 @@ type
   TInstanceBindingTests = class(TTestCase)
   private
     FContext: TRttiContext;
-    FDependency: TDependency;
-    FModule: TModule;
-    FBinding: IBindingRegistry;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
   published
     procedure TestTryBuild;
+    procedure TestReleaseInstance;
   end;
 
 implementation
 
-{ TTestModule }
+{ TTestModuleReleaseInstance }
 
-procedure TTestModule.Configure;
+procedure TTestModuleReleaseInstance.Configure;
 begin
   inherited;
   Bind(TDependency).ToInstance(FDependency);
 end;
 
-constructor TTestModule.Create(const Dependency: TDependency);
+constructor TTestModuleReleaseInstance.Create(const Dependency: TDependency);
 begin
   inherited Create;
   FDependency := Dependency;
@@ -53,29 +59,70 @@ procedure TInstanceBindingTests.SetUp;
 begin
   inherited;
   FContext := TRttiContext.Create;
-  FDependency := TDependency.Create;
-  FModule := TTestModule.Create(FDependency);
-  FModule.Configure;
-  FBinding := FModule.Bindings[0];
 end;
 
 procedure TInstanceBindingTests.TearDown;
 begin
   inherited;
-  FBinding := Nil;
-  FModule.Free;
-  FDependency.Free;
   FContext.Free;
+end;
+
+procedure TInstanceBindingTests.TestReleaseInstance;
+var
+  V: TValue;
+  ReleaseProc: TReleaseProcedure;
+  Dependency: TDependency;
+  Module: TModule;
+  Binding: IBindingRegistry;
+begin
+  Dependency := TDependency.Create;
+  Module := TTestModuleReleaseInstance.Create(Dependency);
+  Module.Configure;
+  Binding := Module.Bindings[0];
+
+  CheckTrue(Binding.TryBuild(TTypeInformation.FromType(FContext.GetType(TDependency)), Nil, V, ReleaseProc));
+  CheckEquals(TDependency, V.AsObject.ClassType);
+  CheckTrue(Dependency = V.AsObject);
+
+  Binding := Nil;
+  Module.Free;
 end;
 
 procedure TInstanceBindingTests.TestTryBuild;
 var
   V: TValue;
   ReleaseProc: TReleaseProcedure;
+  Dependency: TDependency;
+  Module: TModule;
+  Binding: IBindingRegistry;
 begin
-  CheckTrue(FBinding.TryBuild(TTypeInformation.FromType(FContext.GetType(TDependency)), Nil, V, ReleaseProc));
+  Dependency := TDependency.Create;
+  Module := TTestModuleDontReleaseInstance.Create(Dependency);
+  Module.Configure;
+  Binding := Module.Bindings[0];
+
+  CheckTrue(Binding.TryBuild(TTypeInformation.FromType(FContext.GetType(TDependency)), Nil, V, ReleaseProc));
   CheckEquals(TDependency, V.AsObject.ClassType);
-  CheckTrue(FDependency = V.AsObject);
+  CheckTrue(Dependency = V.AsObject);
+
+  Binding := Nil;
+  Module.Free;
+  Dependency.Free;
+end;
+
+{ TTestModuleDontReleaseInstance }
+
+procedure TTestModuleDontReleaseInstance.Configure;
+begin
+  inherited;
+  Bind(TDependency).ToInstance(FDependency).AndDontReleaseInstance;
+end;
+
+constructor TTestModuleDontReleaseInstance.Create(
+  const Dependency: TDependency);
+begin
+  inherited Create;
+  FDependency := Dependency;
 end;
 
 initialization

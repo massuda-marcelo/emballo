@@ -17,17 +17,6 @@ type
     procedure Configure; override;
   end;
 
-  TModuleTests = class(TTestCase)
-  private
-    FModule: TTestModule;
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
-  published
-    procedure TestBindings;
-    procedure TestScopes;
-  end;
-
   TInjectorImplTests = class(TTestCase)
   private
     FCtx: TRttiContext;
@@ -79,47 +68,6 @@ function Delegate(const Proc: TProc): TDelegateModule;
 begin
   Result := TDelegateModule.Create;
   Result.FDelegate := Proc;
-end;
-
-{ TModuleTests }
-
-procedure TModuleTests.SetUp;
-begin
-  inherited;
-  FModule := TTestModule.Create;
-end;
-
-procedure TModuleTests.TearDown;
-begin
-  inherited;
-  FModule.Free;
-end;
-
-procedure TModuleTests.TestBindings;
-//var
-//  Binding: IBinding;
-begin
-//  FModule.Configure;
-//  Binding := FModule.Bindings[0];
-//  CheckTrue(TAbstractFoo.ClassInfo = Binding.BoundType.Handle);
-//  CheckTrue(TConcreteFoo.ClassInfo = Binding.BoundToType.Handle);
-//
-//  Binding := FModule.Bindings[1];
-//  CheckTrue(GetTypeInfoFromGUID(IBar) = Binding.BoundType.Handle);
-//  CheckTrue(TBar.ClassInfo = Binding.BoundToType.Handle);
-end;
-
-procedure TModuleTests.TestScopes;
-//var
-//  Binding: IBinding;
-begin
-//  FModule.Configure;
-//
-//  Binding := FModule.Bindings[0];
-//  CheckEquals(TDefaultScope, Binding.Scope, 'When not specified, a binding will be scoped by TDefaultScope');
-//
-//  Binding := FModule.Bindings[1];
-//  CheckEquals(TMyScope, Binding.Scope);
 end;
 
 { TTestModule }
@@ -265,7 +213,6 @@ begin
 end;
 
 initialization
-RegisterTest('Emballo.DI', TModuleTests.Suite);
 RegisterTest('Emballo.DI', TInjectorImplTests.Suite);
 
 end.

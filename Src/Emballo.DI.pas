@@ -17,6 +17,7 @@ type
   TScope = class abstract
   protected
     function Get(const Info: TRttiType): TValue; virtual; abstract;
+    procedure NotifyCreation(const RequestedType: TRttiType; const Value: TValue); virtual; abstract;
   end;
   TScopeClass = class of TScope;
 
@@ -449,6 +450,7 @@ begin
     end
     else
       Result := Value;
+    Scope.NotifyCreation(RequestedType, Result);
   end;
 end;
 

@@ -6,6 +6,10 @@ uses
   Rtti, Generics.Collections, Emballo.General, TypInfo;
 
 type
+  FactoryMethod = class(TCustomAttribute)
+
+  end;
+
   TReleaseProcedure = reference to procedure(const Obj: TObject);
 
   TReleaseProcedures = class
@@ -21,10 +25,6 @@ type
   end;
   TScopeClass = class of TScope;
 
-  IInstanceResolver = interface
-    function ResolveType(const RequestedType: TRttiType; const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass): TValue;
-  end;
-
   ITypeInformation = interface
     ['{ADA7CF05-4489-42A9-9F79-16632CECF778}']
     function GetRttiType: TRttiType;
@@ -34,6 +34,11 @@ type
     property RttiType: TRttiType read GetRttiType;
     property Parent: TRttiObject read GetParent;
     property Name: String read GetName;
+  end;
+
+  IInstanceResolver = interface
+    function ResolveType(const RequestedType: TRttiType; const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass): TValue;
+    function Resolve(Info: ITypeInformation; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
   end;
 
   TTypeInformation = class(TInterfacedObject, ITypeInformation)
@@ -54,6 +59,8 @@ type
   TDefaultScope = class(TScope)
   protected
     function Get(const Info: TRttiType): TValue; override;
+    procedure NotifyCreation(const RequestedType: TRttiType;
+      const Value: TValue); override;
   end;
 
   IConstantBinding = interface
@@ -168,6 +175,17 @@ type
     destructor Destroy; override;
   end;
 
+  TFactoryMethodBinding = class(TInterfacedObject, IBindingRegistry)
+  private
+    FMethod: TRttiMethod;
+    FModule: TObject;
+  public
+    function TryBuild(Info: ITypeInformation;
+      InstanceResolver: IInstanceResolver; out Value: TValue;
+      out ReleaseProc: TReleaseProcedure): Boolean;
+    constructor Create(const Module: TObject; const Method: TRttiMethod);
+  end;
+
   TBindingRegistry = class(TInterfacedObject, IBindingRegistry, IClassBinder, IConstantBinder, IScopper)
   private
     type
@@ -202,6 +220,7 @@ type
     FRttiContext: TRttiContext;
     function GetBinding(Index: Integer): IBindingRegistry;
     function _BindConstant<T>(const Value: T): IConstantBinder;
+    procedure RegisterFactoryMethodBindings;
   public
     constructor Create;
     destructor Destroy; override;
@@ -480,6 +499,7 @@ constructor TModule.Create;
 begin
   FBindings := TList<IBindingRegistry>.Create;
   FRttiContext := TRttiContext.Create;
+  RegisterFactoryMethodBindings;
 end;
 
 destructor TModule.Destroy;
@@ -497,6 +517,19 @@ end;
 procedure TModule.RegisterBinding(const BindingRegistry: IBindingRegistry);
 begin
   FBindings.Add(BindingRegistry);
+end;
+
+procedure TModule.RegisterFactoryMethodBindings;
+var
+  Method: TRttiMethod;
+  Attr: FactoryMethod;
+begin
+  for Method in FRttiContext.GetType(ClassType).GetMethods do
+  begin
+    Attr := TRttiUtils.GetAttribute<FactoryMethod>(Method);
+    if Assigned(Attr) then
+      RegisterBinding(TFactoryMethodBinding.Create(Self, Method));
+  end;
 end;
 
 function TModule._BindConstant<T>(const Value: T): IConstantBinder;
@@ -655,6 +688,12 @@ function TDefaultScope.Get(const Info: TRttiType): TValue;
 begin
   { The default scope behaviour is that nothing is scopped }
   Result := Nil;
+end;
+
+procedure TDefaultScope.NotifyCreation(const RequestedType: TRttiType;
+  const Value: TValue);
+begin
+  // Do nothing
 end;
 
 { TTypeInformation }
@@ -838,6 +877,57 @@ constructor TInjectorImpl.TDependencyRec.Create(const Dep: TObject;
 begin
   Self.Dep := Dep;
   Self.ReleaseProc := ReleaseProc;
+end;
+
+{ TFactoryMethodBinding }
+
+constructor TFactoryMethodBinding.Create(const Module: TObject; const Method: TRttiMethod);
+begin
+  FModule := Module;
+  FMethod := Method;
+end;
+
+function TFactoryMethodBinding.TryBuild(Info: ITypeInformation;
+  InstanceResolver: IInstanceResolver; out Value: TValue;
+  out ReleaseProc: TReleaseProcedure): Boolean;
+var
+  Args: TArray<TRttiParameter>;
+  ArgsValues: TArray<TValue>;
+  i: Integer;
+  RP: TReleaseProcedure;
+  SC: TSynteticClass;
+  Obj: TObject;
+  NewMetaClass: TClass;
+begin
+  if Info.RttiType = FMethod.ReturnType then
+  begin
+    Args := FMethod.GetParameters;
+    SetLength(ArgsValues, Length(Args));
+    for i := 0 to Length(Args) - 1 do
+      InstanceResolver.Resolve(TTypeInformation.Fromparameter(Args[i]), ArgsValues[i], RP);
+    Value := FMethod.Invoke(TValue.From(FModule), ArgsValues);
+
+    Obj := Value.AsObject;
+
+    SC := TSynteticClass.Create(Obj.ClassName + '__EnhancedByEmballo', Obj.ClassType, 0, Nil, True);
+    SC.Finalizer := procedure(const Instance: TObject)
+    var
+      i: Integer;
+    begin
+      for i := 0 to Length(ArgsValues) - 1 do
+      begin
+        if ArgsValues[i].IsObject then
+          ArgsValues[i].AsObject.Free;
+      end;
+    end;
+    NewMetaClass := SC.Metaclass;
+    Move(NewMetaClass, Pointer(Obj)^, SizeOf(Pointer));
+    Value := TValue.From(Obj);
+
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 initialization

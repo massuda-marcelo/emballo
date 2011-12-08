@@ -127,6 +127,7 @@ function GetAditionalData(const Instance: TObject): Pointer;
 var
   Address: Integer;
 begin
+
   Address := Integer(Instance);
   Address := Address + Instance.InstanceSize;
 

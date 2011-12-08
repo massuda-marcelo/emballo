@@ -29,6 +29,11 @@ type
     constructor Create(GUID: TGUID);
   end;
 
+  TRttiUtils = class
+  public
+    class function GetAttribute<T:TCustomAttribute>(const RttiObject: TRttiObject): T;
+  end;
+
 { Returns the typeinfo of an interface given it's GUID.
   The interface is searched using Rtti, and if no interface with the given GUID
   can be found, an EUnknownGUID is raised }
@@ -105,6 +110,19 @@ end;
 constructor EUnknownGUID.Create(GUID: TGUID);
 begin
   inherited Create('GUID not found: ' + GUIDToString(GUID));
+end;
+
+{ TRttiUtils }
+
+class function TRttiUtils.GetAttribute<T>(const RttiObject: TRttiObject): T;
+var
+  Attr: TCustomAttribute;
+begin
+  for Attr in RttiObject.GetAttributes do
+    if Attr.ClassType.InheritsFrom(T) then
+      Exit(T(Attr));
+
+  Result := Nil;
 end;
 
 end.

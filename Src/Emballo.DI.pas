@@ -236,6 +236,8 @@ type
   TInjector = record
   private
     FInjector: IInjector;
+    FWeakRefInjector: Pointer;
+    function GetInjector: IInjector;
   public
     function GetInstance<T>: T; overload;
     function GetInstance(const AInfo: PTypeInfo): TValue; overload;
@@ -415,7 +417,7 @@ var
 begin
   if Info.RttiType.Handle = TypeInfo(TInjector) then
   begin
-    Injector.FInjector := Self;
+    Injector.FWeakRefInjector := Pointer(Self as IInjector);
     TValue.Make(@Injector, TypeInfo(TInjector), Value);
     Result := True;
     ReleaseProc := TReleaseProcedures.DO_NOTHING();
@@ -642,6 +644,14 @@ begin
   FInjector := TInjectorImpl.Create(Modules);
 end;
 
+function TInjector.GetInjector: IInjector;
+begin
+  if Assigned(FInjector) then
+    Result := FInjector
+  else
+    Result := IInjector(FWeakRefInjector);
+end;
+
 function TInjector.GetInstance(const AInfo: PTypeInfo): TValue;
 var
   Info: TRttiType;
@@ -650,7 +660,7 @@ begin
   Ctx := TRttiContext.Create;
   try
     Info := Ctx.GetType(AInfo);
-    Result := FInjector.GetInstance(Info);
+    Result := GetInjector.GetInstance(Info);
   finally
     Ctx.Free;
   end;

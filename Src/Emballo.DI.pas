@@ -773,7 +773,7 @@ end;
 
 function TInjector.IsInitialized: Boolean;
 begin
-  Result := Assigned(FInjector);
+  Result := Assigned(FInjector) or Assigned(FWeakRefInjector);
 end;
 
 { TDefaultScope }
@@ -935,7 +935,8 @@ begin
   if Accept(Info) then
   begin
     Value := InstanceResolver.ResolveType(Info.RttiType, FConcreteType.AsInstance, FScope);
-    ReleaseProc := TReleaseProcedures.FREE();
+    if Info.RttiType.IsInstance then
+      ReleaseProc := TReleaseProcedures.FREE();
     Result := True;
   end
   else

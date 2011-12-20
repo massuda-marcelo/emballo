@@ -32,6 +32,8 @@ type
   TMyScope = class(TScope)
   protected
     function Get(const Info: TRttiType): TValue; override;
+    procedure NotifyCreation(const RequestedType: TRttiType;
+      const Value: TValue); override;
   end;
 
   TDelegateScope = class(TScope)
@@ -41,6 +43,8 @@ type
     FGet: TGet;
   protected
     function Get(const Info: TRttiType): TValue; override;
+    procedure NotifyCreation(const RequestedType: TRttiType;
+      const Value: TValue); override;
   end;
 
   TAbstractFoo = class
@@ -205,11 +209,25 @@ begin
   Result := FGet(Info);
 end;
 
+procedure TDelegateScope.NotifyCreation(const RequestedType: TRttiType;
+  const Value: TValue);
+begin
+  inherited;
+
+end;
+
 { TMyScope }
 
 function TMyScope.Get(const Info: TRttiType): TValue;
 begin
   Result := TValue.Empty;
+end;
+
+procedure TMyScope.NotifyCreation(const RequestedType: TRttiType;
+  const Value: TValue);
+begin
+  inherited;
+
 end;
 
 initialization

@@ -41,6 +41,7 @@ type
     property RttiType: TRttiType read GetRttiType;
     property Parent: TRttiObject read GetParent;
     property Name: String read GetName;
+    function GetAttributes: TArray<TCustomAttribute>;
   end;
 
   IInstanceResolver = interface
@@ -53,14 +54,17 @@ type
     FRttiType: TRttiType;
     FName: String;
     FParent: TRttiObject;
+    FAttributes: TArray<TCustomAttribute>;
 
     function GetRttiType: TRttiType;
     function GetName: String;
     function GetParent: TRttiObject;
-    constructor Create(const AType: TRttiType; const AName: String; const AParent: TRttiObject);
+    function GetAttributes: TArray<TCustomAttribute>;
+    constructor Create(const AType: TRttiType; const AName: String; const AParent: TRttiObject;
+      const Attributes: TArray<TCustomAttribute>);
   public
     class function FromType(const AType: TRttiType): ITypeInformation;
-    class function Fromparameter(const AParameter: TRttiParameter): ITypeInformation;
+    class function FromParameter(const AParameter: TRttiParameter): ITypeInformation;
   end;
 
   TDefaultScope = class(TScope)
@@ -462,7 +466,7 @@ function TInjectorImpl.Resolve(Info: ITypeInformation;
   begin
     Prov := function: TValue
     begin
-      Resolve(TTypeInformation.Create(AType, '', Nil), Result, RP);
+      Resolve(TTypeInformation.Create(AType, '', Nil, Nil), Result, RP);
       if AType is TRttiInterfaceType then
         FixInterfaceValue(AType as TRttiInterfaceType, Result);
     end;
@@ -697,13 +701,21 @@ end;
 
 function TBindingRegistry.TryBuild(Info: ITypeInformation;
   InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
+var
+  i: Integer;
 begin
   if (FKind = bkConstantBinding) and (Info.RttiType.Handle = FValue.TypeInfo) then
   begin
-    Value := FValue;
-    ReleaseProc := Nil;
-    Result := True;
-    Exit;
+    for i := 0 to High(Info.GetAttributes) do
+    begin
+      if Info.GetAttributes[i] is FAttributeClass then
+      begin
+        Value := FValue;
+        ReleaseProc := Nil;
+        Result := True;
+        Exit;
+      end;
+    end;
   end;
 
   Result := False;
@@ -781,23 +793,30 @@ end;
 { TTypeInformation }
 
 constructor TTypeInformation.Create(const AType: TRttiType; const AName: String;
-  const AParent: TRttiObject);
+  const AParent: TRttiObject; const Attributes: TArray<TCustomAttribute>);
 begin
   FRttiType := AType;
   FName := AName;
   FParent := AParent;
+  FAttributes := Attributes;
 end;
 
 class function TTypeInformation.Fromparameter(
   const AParameter: TRttiParameter): ITypeInformation;
 begin
-  Result := TTypeInformation.Create(AParameter.ParamType, AParameter.Name, AParameter.Parent);
+  Result := TTypeInformation.Create(AParameter.ParamType, AParameter.Name, AParameter.Parent,
+    AParameter.GetAttributes);
 end;
 
 class function TTypeInformation.FromType(
   const AType: TRttiType): ITypeInformation;
 begin
-  Result := TTypeInformation.Create(AType, '', Nil);
+  Result := TTypeInformation.Create(AType, '', Nil, Nil);
+end;
+
+function TTypeInformation.GetAttributes: TArray<TCustomAttribute>;
+begin
+  Result := FAttributes;
 end;
 
 function TTypeInformation.GetName: String;

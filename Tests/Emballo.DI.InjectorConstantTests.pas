@@ -11,10 +11,15 @@ type
 
   end;
 
+  TestAttr2 = class(TCustomAttribute)
+
+  end;
+
   TFoo = class
   public
     FBar: String;
-    constructor Create([TestAttr] Bar: String);
+    FFoo: String;
+    constructor Create([TestAttr] Bar: String; [TestAttr2] Foo: String);
   end;
 
   TInjectorConstantTests = class(TTestCase)
@@ -35,13 +40,15 @@ procedure TConstantTestModule.Configure;
 begin
   inherited;
   BindConstant('Emballo Rocks').ToAttribute(TestAttr);
+  BindConstant('Star Wars too =)').ToAttribute(TestAttr2);
 end;
 
 { TFoo }
 
-constructor TFoo.Create(Bar: String);
+constructor TFoo.Create(Bar: String; Foo: String);
 begin
   FBar := Bar;
+  FFoo := Foo;
 end;
 
 { TInjectorConstantTests }
@@ -55,6 +62,7 @@ begin
   Foo := Injector.GetInstance<TFoo>;
   try
     CheckEquals('Emballo Rocks', Foo.FBar);
+    CheckEquals('Star Wars too =)', Foo.FFoo);
   finally
     Foo.Free;
   end;

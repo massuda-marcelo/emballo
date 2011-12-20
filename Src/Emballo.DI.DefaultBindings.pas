@@ -9,6 +9,9 @@ type
   AppPath = class(TCustomAttribute)
   end;
 
+  AppDir = class(TCustomAttribute)
+  end;
+
   IsDebugging = class(TCustomAttribute)
   end;
 
@@ -25,7 +28,7 @@ type
 implementation
 
 uses
-  Forms, Rtti, Classes;
+  Forms, Rtti, Classes, SysUtils;
 
 type
   TFormOwnerBinding = class(TInterfacedObject, IBindingRegistry)
@@ -40,6 +43,7 @@ procedure TDefaultModule.Configure;
 begin
   inherited;
   BindConstant(ParamStr(0)).ToAttribute(AppPath);
+  BindConstant(ExtractFilePath(ParamStr(0))).ToAttribute(AppDir);
   BindConstant(DebugHook <> 0).ToAttribute(IsDebugging);
 end;
 

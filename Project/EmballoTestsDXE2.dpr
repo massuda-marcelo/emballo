@@ -65,7 +65,8 @@ uses
   Emballo.DI.InjectorConstantTests in '..\Tests\Emballo.DI.InjectorConstantTests.pas',
   Emballo.DI.InstanceBindingTests in '..\Tests\Emballo.DI.InstanceBindingTests.pas',
   Emballo.DI.ScopeTests in '..\Tests\Emballo.DI.ScopeTests.pas',
-  Emballo.DI.ProviderMethodBindingTests in '..\Tests\Emballo.DI.ProviderMethodBindingTests.pas';
+  Emballo.DI.ProviderMethodBindingTests in '..\Tests\Emballo.DI.ProviderMethodBindingTests.pas',
+  Emballo.DI.ProviderTests in '..\Tests\Emballo.DI.ProviderTests.pas';
 
 {$R *.RES}
 

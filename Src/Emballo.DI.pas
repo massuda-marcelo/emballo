@@ -10,7 +10,14 @@ type
 
   end;
 
-  TReleaseProcedure = reference to procedure(const Obj: TObject);
+  { I wish I could implement it in a way that this return T instead of TValue,
+    but it's hard due to the way generics are implemented in Delphi.
+    The generic argument is here just to make it easy to determine what's the
+    type actualy being provided.
+    Suggestions are welcome }
+  TProvider<T> = reference to function: TValue;
+
+  TReleaseProcedure = reference to procedure(const Instance: TValue);
 
   TReleaseProcedures = class
   public
@@ -123,6 +130,7 @@ type
     function ToInstance(const Instance: TObject): IInstanceBindingConfigurer; overload;
     function ToInstance(const Instance: IInterface): IInstanceBindingConfigurer; overload;
     function ToType(const AType: TClass): IScopper;
+    procedure ToDll(const DllName: String);
   end;
 
   TAbstractConcreteTypeBinding = class(TInterfacedObject, IBindingRegistry, IScopper)
@@ -151,6 +159,18 @@ type
     function Accept(const Info: ITypeInformation): Boolean; override;
   end;
 
+  TDllBinding = class(TInterfacedObject, IBindingRegistry)
+  private
+    FDllInterface: TRttiType;
+    FDllName: String;
+    FValue: TValue;
+  public
+    constructor Create(const DllInterface: TRttiType; const DllName: String);
+    function TryBuild(Info: ITypeInformation;
+      InstanceResolver: IInstanceResolver; out Value: TValue;
+      out ReleaseProc: TReleaseProcedure): Boolean;
+  end;
+
   TProtoBinder = class(TInterfacedObject, IProtoBinder)
   private
     FBindings: TList<IBindingRegistry>;
@@ -158,6 +178,7 @@ type
     function ToInstance(const Instance: TObject): IInstanceBindingConfigurer; overload;
     function ToInstance(const Instance: IInterface): IInstanceBindingConfigurer; overload;
     function ToType(const AType: TClass): IScopper;
+    procedure ToDll(const DllName: String);
   public
     constructor Create(const AType: ITypeInformation; const Bindings: TList<IBindingRegistry>);
   end;
@@ -197,6 +218,7 @@ type
     FScopeClass: TScopeClass;
     FRttiContext: TRttiContext;
     FValue: TValue;
+    FAttributeClass: TCustomAttributeClass;
     function GetBoundType: TRttiType;
     function GetBoundToType: TRttiType;
     function GetScopeClass: TScopeClass;
@@ -249,9 +271,9 @@ type
   private
     type
       TDependencyRec = record
-        Dep: TObject;
+        Dep: TValue;
         ReleaseProc: TReleaseProcedure;
-        constructor Create(const Dep: TObject; const ReleaseProc: TReleaseProcedure);
+        constructor Create(const Dep: TValue; const ReleaseProc: TReleaseProcedure);
       end;
   private
     FModules: array of TModule;
@@ -273,10 +295,22 @@ implementation
 uses
   SysUtils,
   Emballo.Rtti,
+  Emballo.DllWrapper,
   Emballo.SynteticClass;
 
 var
   Ctx: TRttiContext;
+
+procedure FixInterfaceValue(AType: TRttiInterfaceType; var Value: TValue);
+var
+  Intf: IInterface;
+  FixedInterface: Pointer;
+begin
+  Intf := Value.AsInterface;
+  Supports(Intf, AType.GUID, FixedInterface);
+  Intf._Release;
+  TValue.Make(@FixedInterface, AType.Handle, Value);
+end;
 
 { TInjectorImpl }
 
@@ -331,18 +365,6 @@ begin
 end;
 
 function TInjectorImpl.Instantiate(const AClass: TClass): TObject;
-
-  procedure FixInterfaceValue(AType: TRttiInterfaceType; var Value: TValue);
-  var
-    Intf: IInterface;
-    FixedInterface: Pointer;
-  begin
-    Intf := Value.AsInterface;
-    Supports(Intf, AType.GUID, FixedInterface);
-    Intf._Release;
-    TValue.Make(@FixedInterface, AType.Handle, Value);
-  end;
-
 var
   M: TRttiMethod;
   ArgsValues: TArray<TValue>;
@@ -389,9 +411,9 @@ begin
         begin
           Resolve(TTypeInformation.FromParameter(Args[i]), ArgsValues[i], ReleaseProc);
           if Args[i].ParamType is TRttiInterfaceType then
-            FixInterfaceValue(TRttiInterfaceType(Args[i].ParamType), ArgsValues[i])
-          else if Args[i].ParamType.IsInstance then
-            ObjectsToFree.Add(TDependencyRec.Create(ArgsValues[i].AsObject, ReleaseProc));
+            FixInterfaceValue(TRttiInterfaceType(Args[i].ParamType), ArgsValues[i]);
+
+          ObjectsToFree.Add(TDependencyRec.Create(ArgsValues[i], ReleaseProc));
         end;
 
         Result := M.Invoke(SC.Metaclass, ArgsValues).AsObject;
@@ -406,6 +428,49 @@ end;
 function TInjectorImpl.Resolve(Info: ITypeInformation;
   out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
 
+  type
+    TUntypedProvider = reference to function: TValue;
+
+  function IsProvider(out AType: TRttiType): Boolean;
+  var
+    Intf: TRttiInterfaceType;
+    Invoke: TRttiMethod;
+    BaseName: String;
+    ProvidedTypeName: String;
+  begin
+    if not (Info.RttiType is TRttiInterfaceType) then
+      Exit(False);
+
+    Intf := Info.RttiType as TRttiInterfaceType;
+
+    BaseName := Self.UnitName + '.TProvider<';
+    { It's a trick to know if the given type is a instantiation of the
+      generic type Emballo.DI.TProvider<T>. If so, the type name will
+      begin with 'Emballo.DI.TProvider<' }
+    if Pos(BaseName, Intf.QualifiedName) <> 1 then
+      Exit(False);
+
+    ProvidedTypeName := Copy(Intf.QualifiedName, Length(BaseName) + 1, Pos('>', Intf.QualifiedName) - Length(BaseName) - 1);
+    AType := FCtx.FindType(ProvidedTypeName);
+    Result := True;
+  end;
+
+  function DoWithProvider(const AType: TRttiType; out Value: TValue): Boolean;
+  var
+    Prov: TUntypedProvider;
+    RP: TReleaseProcedure;
+  begin
+    Prov := function: TValue
+    begin
+      Resolve(TTypeInformation.Create(AType, '', Nil), Result, RP);
+      if AType is TRttiInterfaceType then
+        FixInterfaceValue(AType as TRttiInterfaceType, Result);
+    end;
+    TValue.Make(@Prov, Info.RttiType.Handle, Value);
+    ReleaseProc := Nil;
+    Result := True;
+  end;
+
   procedure TryWith(const Factory: ITypeFactory);
   begin
     Result := Factory.TryBuild(Info, Self, Value, ReleaseProc);
@@ -414,6 +479,7 @@ var
   Module: TModule;
   Binding: IBindingRegistry;
   Injector: TInjector;
+  ProviderType: TRttiType;
 begin
   if Info.RttiType.Handle = TypeInfo(TInjector) then
   begin
@@ -448,7 +514,13 @@ begin
 
     Result := True;
     Exit;
+  end
+  else if IsProvider(ProviderType) then
+  begin
+    Result := DoWithProvider(ProviderType, Value);
+    Exit;
   end;
+
 
   Result := False;
 end;
@@ -614,7 +686,7 @@ end;
 procedure TBindingRegistry.ToAttribute(
   const AttributeClass: TCustomAttributeClass);
 begin
-
+  FAttributeClass := AttributeClass;
 end;
 
 function TBindingRegistry.ToType(const AClass: TClass): IScopper;
@@ -758,6 +830,11 @@ begin
   FBindings.Add(Result as IBindingRegistry);
 end;
 
+procedure TProtoBinder.ToDll(const DllName: String);
+begin
+  FBindings.Add(TDllBinding.Create(FType.RttiType, DllName));
+end;
+
 function TProtoBinder.ToInstance(const Instance: IInterface): IInstanceBindingConfigurer;
 begin
   Result := TInstanceBinding.Create(FType, TValue.From(Instance));
@@ -874,15 +951,15 @@ end;
 
 class function TReleaseProcedures.FREE: TReleaseProcedure;
 begin
-  Result := procedure(const Obj: TObject)
+  Result := procedure(const Instance: TValue)
   begin
-    Obj.Free;
+    Instance.AsObject.Free;
   end;
 end;
 
 { TInjectorImpl.TDependencyRec }
 
-constructor TInjectorImpl.TDependencyRec.Create(const Dep: TObject;
+constructor TInjectorImpl.TDependencyRec.Create(const Dep: TValue;
   const ReleaseProc: TReleaseProcedure);
 begin
   Self.Dep := Dep;
@@ -934,6 +1011,36 @@ begin
     Move(NewMetaClass, Pointer(Obj)^, SizeOf(Pointer));
     Value := TValue.From(Obj);
 
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+{ TDllBinding }
+
+constructor TDllBinding.Create(const DllInterface: TRttiType;
+  const DllName: String);
+begin
+  FValue := TValue.Empty;
+  FDllInterface := DllInterface;
+  FDllName := DllName;
+end;
+
+function TDllBinding.TryBuild(Info: ITypeInformation;
+  InstanceResolver: IInstanceResolver; out Value: TValue;
+  out ReleaseProc: TReleaseProcedure): Boolean;
+var
+  DllIntf: IInterface;
+begin
+  if Info.RttiType = FDllInterface then
+  begin
+    if FValue.IsEmpty then
+    begin
+      DllIntf := DllWrapperService.Get(FDllInterface.Handle, FDllName);
+      FValue := TValue.From<IInterface>(DllIntf);
+    end;
+    Value := FValue;
     Result := True;
   end
   else

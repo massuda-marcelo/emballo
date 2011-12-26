@@ -755,17 +755,20 @@ var
   Info: TRttiType;
   Ctx: TRttiContext;
   V: TValue;
+  RttiType: TRttiType;
+  Intf: IInterface;
 begin
   Ctx := TRttiContext.Create;
   try
+    RttiType := Ctx.GetType(TypeInfo(T));
     V := GetInstance(TypeInfo(T));
-    if V.TypeInfo.Kind = tkClass then
-      Result := T(V.AsObject)
-    else
+    if RttiType is TRttiInterfaceType then
     begin
-      Info := Ctx.GetType(TypeInfo(T));
-      Supports(V.AsInterface, (Info as TRttiInterfaceType).Guid, Result)
-    end;
+      Intf := V.AsInterface;
+      Supports(Intf, TRttiInterfaceType(RttiType).GUID, Result);
+    end
+    else
+      Result := V.AsType<T>;
   finally
     Ctx.Free;
   end;

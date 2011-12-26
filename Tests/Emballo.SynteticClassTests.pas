@@ -195,6 +195,7 @@ begin
     Supports(Inst, ISomeSubIntf, Intf);
     Intf.SetX(123);
     CheckEquals(123, Intf.GetX);
+    Intf := Nil;
   finally
     SynteticClass.Free;
   end;

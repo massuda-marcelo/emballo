@@ -181,13 +181,13 @@ function TMockInternal<T>.GetObject: T;
 var
   Intf: Pointer;
 begin
-  if FInfo.IsInstance then
-    Result := T(FObject.AsObject)
-  else
+  if FInfo is TRttiInterfaceType then
   begin
     Supports(FObject.AsInterface, (FInfo as TRttiInterfaceType).GUID, Intf);
     Move(Intf, Result, SizeOf(Pointer));
-  end;
+  end
+  else
+    Result := FObject.AsType<T>;
 end;
 
 function TMockInternal<T>.IsMatchingCall(const Expected: TExpectedMethodCall;

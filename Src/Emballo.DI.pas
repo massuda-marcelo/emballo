@@ -1000,6 +1000,21 @@ end;
 function TFactoryMethodBinding.TryBuild(Info: ITypeInformation;
   InstanceResolver: IInstanceResolver; out Value: TValue;
   out ReleaseProc: TReleaseProcedure): Boolean;
+
+  function CheckForAttributes: Boolean;
+  var
+    Attr1, Attr2: TCustomAttribute;
+  begin
+    if Length(Info.GetAttributes) = 0 then
+      Exit(True);
+
+    Result := False;
+    for Attr1 in Info.GetAttributes do
+      for Attr2 in FMethod.GetAttributes do
+        if Attr1.ClassType = Attr2.ClassType then
+          Exit(True);
+  end;
+
 var
   Args: TArray<TRttiParameter>;
   ArgsValues: TArray<TValue>;
@@ -1009,7 +1024,7 @@ var
   Obj: TObject;
   NewMetaClass: TClass;
 begin
-  if Info.RttiType = FMethod.ReturnType then
+  if (Info.RttiType = FMethod.ReturnType) and CheckForAttributes then
   begin
     Args := FMethod.GetParameters;
     SetLength(ArgsValues, Length(Args));

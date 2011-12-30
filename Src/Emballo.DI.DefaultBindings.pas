@@ -79,7 +79,7 @@ begin
     if TRttiInstanceType(Method.Parent).MetaclassType.InheritsFrom(TCustomForm) then
     begin
       Value := TValue.From(Application);
-      ReleaseProc := TReleaseProcedures.DO_NOTHING();
+      ReleaseProc := Nil;
       Result := True;
     end;
   end;

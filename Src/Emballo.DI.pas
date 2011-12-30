@@ -17,12 +17,21 @@ type
     Suggestions are welcome }
   TProvider<T> = reference to function: TValue;
 
-  TReleaseProcedure = reference to procedure(const Instance: TValue);
+  TReleaseProcedure = reference to procedure;
 
-  TReleaseProcedures = class
-  public
-    class function FREE: TReleaseProcedure;
-    class function DO_NOTHING: TReleaseProcedure;
+  { Annon. methods are very suitable for the purpose of the release procedures.
+    However, it looks like there are some issues when multiple instances of the
+    same annon. method are created refering to the same local variables. Such
+    situation occurs e.g. on TInjectorImpl.Instanciate() when Emballo should
+    set up an release proc for each parameter used to call the constructor of
+    the type being instantiated. To circunvent this, we can rely on the fact
+    that annon. methods are actualy interfaces (Hope this fact doesn't change
+    on the future) and in this specific case we will use an specific class
+    that is compatible with the TReleaseProcedure. Doing so, we can have
+    the needed control over the context of the local variables. }
+  IReleaseProcedure = interface
+    ['{B3333CEB-5097-4941-B6E3-DB06E101C9DA}']
+    procedure Invoke;
   end;
 
   TScope = class abstract
@@ -45,7 +54,9 @@ type
   end;
 
   IInstanceResolver = interface
-    function ResolveType(const RequestedType: TRttiType; const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass): TValue;
+    function ResolveType(const RequestedType: TRttiType;
+      const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass;
+      out ReleaseProc: TReleaseProcedure): TValue;
     function Resolve(Info: ITypeInformation; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
   end;
 
@@ -284,14 +295,25 @@ type
     FScopes: TDictionary<TScopeClass, TScope>;
     FImplicitBindings: TList<IBindingRegistry>;
     FCtx: TRttiContext;
-    function Instantiate(const AClass: TClass): TObject;
+    function Instantiate(const AClass: TClass; out ReleaseProc: TReleaseProcedure): TObject;
     function GetScope(const ScopeClass: TScopeClass): TScope;
     function Resolve(Info: ITypeInformation; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
-    function ResolveType(const RequestedType: TRttiType; const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass): TValue;
+    function ResolveType(const RequestedType: TRttiType;
+      const ClassType: TRttiInstanceType;
+      const ScopeClass: TScopeClass; out ReleaseProc: TReleaseProcedure): TValue;
     function GetInstance(const Info: TRttiType): TValue;
   public
     constructor Create(const Modules: array of TModule);
     destructor Destroy; override;
+  end;
+
+  TReleaseProcFreeParameter = class(TInterfacedObject, IReleaseProcedure)
+  private
+    FValue: TValue;
+    FRP: TReleaseProcedure;
+  public
+    procedure Invoke;
+    constructor Create(const Value: TValue; const RP: TReleaseProcedure);
   end;
 
 implementation
@@ -304,6 +326,13 @@ uses
 
 var
   Ctx: TRttiContext;
+
+procedure ReleaseProcIntfToAnonMethod(Intf: IReleaseProcedure;
+  out Anon: TReleaseProcedure);
+begin
+  Move((@Intf)^, Anon, SizeOf(Pointer));
+  Intf._AddRef;
+end;
 
 procedure FixInterfaceValue(AType: TRttiInterfaceType; var Value: TValue);
 var
@@ -320,7 +349,6 @@ end;
 
 constructor TInjectorImpl.Create(const Modules: array of TModule);
 var
-  Module: TModule;
   i: Integer;
 begin
   FCtx := TRttiContext.Create;
@@ -355,8 +383,22 @@ end;
 function TInjectorImpl.GetInstance(const Info: TRttiType): TValue;
 var
   ReleaseProc: TReleaseProcedure;
+  SC: TSynteticClass;
+  NewMetaclass: TClass;
 begin
   Resolve(TTypeInformation.FromType(Info), Result, ReleaseProc);
+  if Result.Kind = tkClass then
+  begin
+    SC := TSynteticClass.Create(Result.AsObject.ClassName + '__EnhancedByEmballo', Result.AsObject.ClassType, 0, Nil, True);
+    SC.Finalizer := procedure(const Instance: TObject)
+    begin
+      if Assigned(ReleaseProc) then
+        ReleaseProc();
+    end;
+
+    NewMetaclass := SC.Metaclass;
+    Move(NewMetaclass, Pointer(Result.AsObject)^, SizeOf(Pointer));
+  end;
 end;
 
 function TInjectorImpl.GetScope(const ScopeClass: TScopeClass): TScope;
@@ -368,39 +410,16 @@ begin
   end;
 end;
 
-function TInjectorImpl.Instantiate(const AClass: TClass): TObject;
+function TInjectorImpl.Instantiate(const AClass: TClass; out ReleaseProc: TReleaseProcedure): TObject;
 var
   M: TRttiMethod;
   ArgsValues: TArray<TValue>;
   Args: TArray<TRttiParameter>;
+  ReleaseProcs: TArray<TReleaseProcedure>;
   i: Integer;
-  SC: TSynteticClass;
-  ObjectsToFree: TList<TDependencyRec>;
-  ParamIntf: IInterface;
-  Aux: Pointer;
-  ReleaseProc: TReleaseProcedure;
   Curr: TClass;
+  TmpReleaseProc: TReleaseProcedure;
 begin
-  SC := TSynteticClass.Create(AClass.ClassName + '_EnhancedByEmballo', AClass, SizeOf(Pointer), Nil, True);
-  SC.Finalizer := procedure(const Instance: TObject)
-  var
-    Data: Pointer;
-    List: TList<TDependencyRec>;
-    O: TDependencyRec;
-    i: Integer;
-  begin
-    Data := GetAditionalData(Instance);
-    List := TList<TDependencyRec>(Data^);
-    for i := 0 to List.Count - 1 do
-    begin
-      O := List[i];
-      if Assigned(O.ReleaseProc) then
-        O.ReleaseProc(O.Dep);
-    end;
-
-    List.Free;
-  end;
-
   Curr := AClass;
   while True do
   begin
@@ -408,20 +427,26 @@ begin
     begin
       if M.IsConstructor then
       begin
-        ObjectsToFree := TList<TDependencyRec>.Create;
         Args := M.GetParameters;
         SetLength(ArgsValues, Length(Args));
+        SetLength(ReleaseProcs, Length(Args));
         for i := 0 to Length(Args) - 1 do
         begin
-          Resolve(TTypeInformation.FromParameter(Args[i]), ArgsValues[i], ReleaseProc);
+          Resolve(TTypeInformation.FromParameter(Args[i]), ArgsValues[i], TmpReleaseProc);
+          ReleaseProcIntfToAnonMethod(TReleaseProcFreeParameter.Create(ArgsValues[i], TmpReleaseProc), ReleaseProcs[i]);
           if Args[i].ParamType is TRttiInterfaceType then
             FixInterfaceValue(TRttiInterfaceType(Args[i].ParamType), ArgsValues[i]);
-
-          ObjectsToFree.Add(TDependencyRec.Create(ArgsValues[i], ReleaseProc));
         end;
 
-        Result := M.Invoke(SC.Metaclass, ArgsValues).AsObject;
-        SetAditionalData(Result, ObjectsToFree);
+        Result := M.Invoke(AClass, ArgsValues).AsObject;
+        ReleaseProc := procedure
+        var
+          RP: TReleaseProcedure;
+        begin
+          for RP in ReleaseProcs do
+            if Assigned(RP) then
+              RP();
+        end;
         Exit;
       end;
     end;
@@ -438,7 +463,6 @@ function TInjectorImpl.Resolve(Info: ITypeInformation;
   function IsProvider(out AType: TRttiType): Boolean;
   var
     Intf: TRttiInterfaceType;
-    Invoke: TRttiMethod;
     BaseName: String;
     ProvidedTypeName: String;
   begin
@@ -490,7 +514,7 @@ begin
     Injector.FWeakRefInjector := Pointer(Self as IInjector);
     TValue.Make(@Injector, TypeInfo(TInjector), Value);
     Result := True;
-    ReleaseProc := TReleaseProcedures.DO_NOTHING();
+    ReleaseProc := Nil;
     Exit;
   end;
 
@@ -513,8 +537,7 @@ begin
 
   if Info.RttiType.IsInstance then
   begin
-    Value := ResolveType(Info.RttiType, Info.RttiType.AsInstance, TDefaultScope);
-    ReleaseProc := TReleaseProcedures.FREE();
+    Value := ResolveType(Info.RttiType, Info.RttiType.AsInstance, TDefaultScope, ReleaseProc);
 
     Result := True;
     Exit;
@@ -529,7 +552,9 @@ begin
   Result := False;
 end;
 
-function TInjectorImpl.ResolveType(const RequestedType: TRttiType; const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass): TValue;
+function TInjectorImpl.ResolveType(const RequestedType: TRttiType;
+  const ClassType: TRttiInstanceType; const ScopeClass: TScopeClass;
+  out ReleaseProc: TReleaseProcedure): TValue;
 var
   Scope: TScope;
   Value: TValue;
@@ -539,7 +564,7 @@ begin
   Result := Scope.Get(RequestedType);
   if Result.IsEmpty then
   begin
-    Value := TValue.From(Instantiate(ClassType.MetaclassType));
+    Value := TValue.From(Instantiate(ClassType.MetaclassType, ReleaseProc));
     if RequestedType is TRttiInterfaceType then
     begin
       Supports(Value.AsObject, IInterface, Intf);
@@ -904,7 +929,7 @@ begin
   if Info.RttiType.Equals(FType.RttiType) then
   begin
     Value := FInstance;
-    ReleaseProc := TReleaseProcedures.DO_NOTHING();
+    ReleaseProc := Nil;
     Result := True;
   end
   else
@@ -937,9 +962,7 @@ function TAbstractConcreteTypeBinding.TryBuild(Info: ITypeInformation;
 begin
   if Accept(Info) then
   begin
-    Value := InstanceResolver.ResolveType(Info.RttiType, FConcreteType.AsInstance, FScope);
-    if Info.RttiType.IsInstance then
-      ReleaseProc := TReleaseProcedures.FREE();
+    Value := InstanceResolver.ResolveType(Info.RttiType, FConcreteType.AsInstance, FScope, ReleaseProc);
     Result := True;
   end
   else
@@ -963,21 +986,6 @@ function TInterfaceBinding.Accept(const Info: ITypeInformation): Boolean;
 
 begin
   Result := (Info.RttiType is TRttiInterfaceType) and CompareGuids;
-end;
-
-{ TReleaseProcedures }
-
-class function TReleaseProcedures.DO_NOTHING: TReleaseProcedure;
-begin
-  Result := Nil;
-end;
-
-class function TReleaseProcedures.FREE: TReleaseProcedure;
-begin
-  Result := procedure(const Instance: TValue)
-  begin
-    Instance.AsObject.Free;
-  end;
 end;
 
 { TInjectorImpl.TDependencyRec }
@@ -1018,37 +1026,29 @@ function TFactoryMethodBinding.TryBuild(Info: ITypeInformation;
 var
   Args: TArray<TRttiParameter>;
   ArgsValues: TArray<TValue>;
+  ReleaseProcs: TArray<TReleaseProcedure>;
   i: Integer;
-  RP: TReleaseProcedure;
-  SC: TSynteticClass;
-  Obj: TObject;
-  NewMetaClass: TClass;
+  TmpReleaseProc: TReleaseProcedure;
 begin
   if (Info.RttiType = FMethod.ReturnType) and CheckForAttributes then
   begin
     Args := FMethod.GetParameters;
     SetLength(ArgsValues, Length(Args));
+    SetLength(ReleaseProcs, Length(Args));
     for i := 0 to Length(Args) - 1 do
-      InstanceResolver.Resolve(TTypeInformation.Fromparameter(Args[i]), ArgsValues[i], RP);
-    Value := FMethod.Invoke(TValue.From(FModule), ArgsValues);
-
-    Obj := Value.AsObject;
-
-    SC := TSynteticClass.Create(Obj.ClassName + '__EnhancedByEmballo', Obj.ClassType, 0, Nil, True);
-    SC.Finalizer := procedure(const Instance: TObject)
-    var
-      i: Integer;
     begin
-      for i := 0 to Length(ArgsValues) - 1 do
-      begin
-        if ArgsValues[i].IsObject then
-          ArgsValues[i].AsObject.Free;
-      end;
+      InstanceResolver.Resolve(TTypeInformation.Fromparameter(Args[i]), ArgsValues[i], TmpReleaseProc);
+      ReleaseProcIntfToAnonMethod(TReleaseProcFreeParameter.Create(ArgsValues[i], TmpReleaseProc), ReleaseProcs[i]);
     end;
-    NewMetaClass := SC.Metaclass;
-    Move(NewMetaClass, Pointer(Obj)^, SizeOf(Pointer));
-    Value := TValue.From(Obj);
-
+    Value := FMethod.Invoke(TValue.From(FModule), ArgsValues);
+    ReleaseProc := procedure
+    var
+      RP: TReleaseProcedure;
+    begin
+      for RP in ReleaseProcs do
+        if Assigned(RP) then
+          RP();
+    end;
     Result := True;
   end
   else
@@ -1083,6 +1083,24 @@ begin
   end
   else
     Result := False;
+end;
+
+{ TReleaseProcFreeParameter }
+
+constructor TReleaseProcFreeParameter.Create(const Value: TValue;
+  const RP: TReleaseProcedure);
+begin
+  FValue := Value;
+  FRP := RP;
+end;
+
+procedure TReleaseProcFreeParameter.Invoke;
+begin
+  if FValue.Kind = tkClass then
+    FValue.AsObject.Free;
+
+  if Assigned(FRP) then
+    FRP();
 end;
 
 initialization

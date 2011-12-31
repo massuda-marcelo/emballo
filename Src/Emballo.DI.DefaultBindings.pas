@@ -34,7 +34,8 @@ type
   TFormOwnerBinding = class(TInterfacedObject, IBindingRegistry)
   public
     function TryBuild(Info: ITypeInformation;
-      InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
+      InstanceResolver: IInstanceResolver; out Value: TValue;
+        out DependenciesReleaseProc, InstanceReleaseProc: TReleaseProcedure): Boolean;
   end;
 
 { TDefaultModule }
@@ -58,9 +59,11 @@ end;
 { TFormOwnerBinding }
 
 function TFormOwnerBinding.TryBuild(Info: ITypeInformation;
-  InstanceResolver: IInstanceResolver; out Value: TValue; out ReleaseProc: TReleaseProcedure): Boolean;
+  InstanceResolver: IInstanceResolver; out Value: TValue;
+    out DependenciesReleaseProc, InstanceReleaseProc: TReleaseProcedure): Boolean;
 var
   Method: TRttiMethod;
+  _Value: TValue;
 begin
   Result := False;
   if not Info.RttiType.IsInstance then
@@ -79,7 +82,8 @@ begin
     if TRttiInstanceType(Method.Parent).MetaclassType.InheritsFrom(TCustomForm) then
     begin
       Value := TValue.From(Application);
-      ReleaseProc := Nil;
+      DependenciesReleaseProc := Nil;
+      InstanceReleaseProc := Nil;
       Result := True;
     end;
   end;

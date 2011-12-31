@@ -7,7 +7,13 @@ uses
 
 type
   TDependency = class
+    Str: String;
+  end;
 
+  TFoo = class
+  public
+    Dep: TDependency;
+    constructor Create(Dep: TDependency);
   end;
 
   TTestModuleReleaseInstance = class(TModule)
@@ -34,6 +40,7 @@ type
     procedure TearDown; override;
   published
     procedure TestTryBuild;
+    procedure TestReuseInstance;
     procedure TestReleaseInstance;
   end;
 
@@ -70,7 +77,7 @@ end;
 procedure TInstanceBindingTests.TestReleaseInstance;
 var
   V: TValue;
-  ReleaseProc: TReleaseProcedure;
+  DependenciesReleaseProc, InstanceReleaseProc: TReleaseProcedure;
   Dependency: TDependency;
   Module: TModule;
   Binding: IBindingRegistry;
@@ -80,7 +87,7 @@ begin
   Module.Configure;
   Binding := Module.Bindings[0];
 
-  CheckTrue(Binding.TryBuild(TTypeInformation.FromType(FContext.GetType(TDependency)), Nil, V, ReleaseProc));
+  CheckTrue(Binding.TryBuild(TTypeInformation.FromType(FContext.GetType(TDependency)), Nil, V, DependenciesReleaseProc, InstanceReleaseProc));
   CheckEquals(TDependency, V.AsObject.ClassType);
   CheckTrue(Dependency = V.AsObject);
 
@@ -88,10 +95,46 @@ begin
   Module.Free;
 end;
 
-procedure TInstanceBindingTests.TestTryBuild;
+procedure TInstanceBindingTests.TestReuseInstance;
 var
   V: TValue;
   ReleaseProc: TReleaseProcedure;
+  Dependency: TDependency;
+  Module: TModule;
+  Binding: IBindingRegistry;
+  Injector: TInjector;
+  Foo: TFoo;
+begin
+  Dependency := TDependency.Create;
+  Module := TTestModuleReleaseInstance.Create(Dependency);
+  Injector := TInjector.Create([Module]);
+
+  Dependency.Str := 'ET phone home';
+
+  { First, simply instantiate TFoo and free it. This is to see if the framework
+    won't free the TDependency instance as it would normaly do with other
+    dependencies }
+  Foo := Injector.GetInstance<TFoo>;
+  try
+    CheckTrue(Foo.Dep = Dependency);
+  finally
+    Foo.Free;
+  end;
+
+  { If the TDependency object was freed, the check above will fail }
+  Foo := Injector.GetInstance<TFoo>;
+  try
+    CheckEquals('ET phone home', Foo.Dep.Str);
+  finally
+    Foo.Free;
+  end;
+
+end;
+
+procedure TInstanceBindingTests.TestTryBuild;
+var
+  V: TValue;
+  DependenciesReleaseProc, InstanceReleaseProc: TReleaseProcedure;
   Dependency: TDependency;
   Module: TModule;
   Binding: IBindingRegistry;
@@ -101,7 +144,7 @@ begin
   Module.Configure;
   Binding := Module.Bindings[0];
 
-  CheckTrue(Binding.TryBuild(TTypeInformation.FromType(FContext.GetType(TDependency)), Nil, V, ReleaseProc));
+  CheckTrue(Binding.TryBuild(TTypeInformation.FromType(FContext.GetType(TDependency)), Nil, V, DependenciesReleaseProc, InstanceReleaseProc));
   CheckEquals(TDependency, V.AsObject.ClassType);
   CheckTrue(Dependency = V.AsObject);
 
@@ -123,6 +166,13 @@ constructor TTestModuleDontReleaseInstance.Create(
 begin
   inherited Create;
   FDependency := Dependency;
+end;
+
+{ TFoo }
+
+constructor TFoo.Create(Dep: TDependency);
+begin
+  Self.Dep := Dep;
 end;
 
 initialization

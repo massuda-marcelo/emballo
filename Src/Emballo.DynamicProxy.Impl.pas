@@ -23,6 +23,7 @@ interface
 uses
   Rtti,
   TypInfo,
+  CodeHook,
   CodeHookIntf,
   Emballo.Interfaces.InterfacedObject,
   Emballo.DynamicProxy.InterfaceProxy,
@@ -264,8 +265,9 @@ begin
 end;
 
 initialization
-InitCodeHookDLL('CHook.dll');
-GetCodeHook(GCodeHook);
+GCodeHook := GetCodeHookIntf;
+//InitCodeHookDLL('CHook.dll');
+//GetCodeHook(GCodeHook);
 GCodeHook.GetCodeHookHelper(GCodeHookHelper);
 
 end.

@@ -1,0 +1,6 @@
+This project is only used for rebuilding the DISASM32.RES file. The only reason to run this is if the table data changes, and the resource needs to be rebuilt. Please be aware that the declarations in da32resc.pas are duplicates of what is in disasm32.pas, so changes in one should be propagated to the other.
+
+For those that wonder why I compiled the tables as resource streams:
+The Delphi compiler (in version 5 anyways) will not let you debug a unit that has more than 65KB of constant data defined in it. The tables exceeded this limit, and it was imperative to be able to debug this. There's your reason. ;-)
+
+

@@ -27,6 +27,7 @@ type
     procedure ShouldConfigureAllModulesOnInjectorCreation;
     procedure GetInstance;
     procedure TestScope;
+    procedure TestInterfaceDependencyShouldRemainAliveAsLongAsMainInstanceIsAlive;
   end;
 
   TMyScope = class(TScope)
@@ -47,26 +48,32 @@ type
       const Value: TValue); override;
   end;
 
-  TAbstractFoo = class
-
-  end;
-
-  TConcreteFoo = class(TAbstractFoo)
-
-  end;
-
   IBar = interface
     ['{22081868-7E42-4429-A8BD-2CB485E35CE0}']
   end;
 
   TBar = class(TInterfacedObject, IBar)
+  public
+    destructor Destroy; override;
+  end;
 
+  TAbstractFoo = class
+
+  end;
+
+  TConcreteFoo = class(TAbstractFoo)
+  public
+    PointerToBar: Pointer;
+    constructor Create(Bar: IBar);
   end;
 
 implementation
 
 uses
   Emballo.Rtti;
+
+var
+  BarDestroyed: Boolean;
 
 function Delegate(const Proc: TProc): TDelegateModule;
 begin
@@ -149,6 +156,23 @@ begin
   FCtx.Free;
 end;
 
+procedure TInjectorImplTests.TestInterfaceDependencyShouldRemainAliveAsLongAsMainInstanceIsAlive;
+var
+  Injector: TInjector;
+  Foo: TConcreteFoo;
+begin
+  BarDestroyed := False;
+  Injector := TInjector.Create([TTestModule.Create]);
+  Foo := Injector.GetInstance<TConcreteFoo>;
+  try
+    CheckFalse(BarDestroyed);
+  finally
+    Foo.Free;
+  end;
+  CheckTrue(BarDestroyed);
+
+end;
+
 procedure TInjectorImplTests.TestScope;
 var
   Module: TModule;
@@ -169,7 +193,7 @@ begin
 
   BarInstance := TBar.Create;
 
-  FooInstance := TConcreteFoo.Create;
+  FooInstance := TConcreteFoo.Create(Nil);
   V := TValue.From(FooInstance);
   try
     TDelegateScope.FGet := function(const Info: TRttiType): TValue
@@ -228,6 +252,24 @@ procedure TMyScope.NotifyCreation(const RequestedType: TRttiType;
 begin
   inherited;
 
+end;
+
+{ TConcreteFoo }
+
+constructor TConcreteFoo.Create(Bar: IBar);
+begin
+  { Store as a pointer so that it doesnt do ref. count. This is to test if
+    the IBar instance remains alive as long as TConcreteFoo instance is alive,
+    even though there isn't any explicit reference to IBar }
+  PointerToBar := Pointer(Bar);
+end;
+
+{ TBar }
+
+destructor TBar.Destroy;
+begin
+  BarDestroyed := True;
+  inherited;
 end;
 
 initialization

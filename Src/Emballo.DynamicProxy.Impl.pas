@@ -301,12 +301,9 @@ var
   Method: TRttiMethod;
 begin
   RttiType := FRttiContext.GetType(ParentClass);
-//  GCodeHook.SetUserDataSize(SizeOf(TMyUserData));
   for Method in RttiType.GetMethods do
     if (Method.DispatchKind = dkStatic) and ShouldHook(Method) then
       HookNonVirtualMethod(Method);
-//  PMyUserData(GCodeHook.GetUserData(H))^.Msg := 'This is user data';
-//  lObjTarget.TestTarget('This is a test', 3);
 end;
 
 end.

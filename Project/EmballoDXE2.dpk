@@ -89,9 +89,6 @@ contains
   Emballo.RuntimeCodeGeneration.MethodInvokationInfo in '..\Src\Emballo.RuntimeCodeGeneration.MethodInvokationInfo.pas',
   Emballo.DI in '..\Src\Emballo.DI.pas',
   Emballo.DI.DefaultBindings in '..\Src\Emballo.DI.DefaultBindings.pas',
-  Emballo.Services in '..\Src\Emballo.Services.pas',
-  CodeHook in '..\Src\CodeHook.pas',
-  CodeHookIntf in '..\Src\CodeHookIntf.pas',
-  DisAsm32 in '..\Src\DisAsm32.pas';
+  Emballo.Services in '..\Src\Emballo.Services.pas';
 
 end.

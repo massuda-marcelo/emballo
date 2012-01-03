@@ -33,6 +33,7 @@ type
     FOriginalProtectFlags: Cardinal;
     FRelativeAddressFixes: array of TRelativeAddressFix;
     FBytes: array of Byte;
+    FFreeMem: Boolean;
   public
     destructor Destroy; override;
 
@@ -62,7 +63,8 @@ type
 
     { Prepares the machine code block to be used.
       You must call it after you finished to put the instructions on the block }
-    procedure Compile;
+    procedure Compile; overload;
+    procedure Compile(const Target: Pointer); overload;
   end;
 
 implementation
@@ -78,8 +80,21 @@ var
   OffsetAddress: Pointer;
   NextInstructionAddress: Integer;
   Offset: Integer;
+  Ptr: Pointer;
 begin
-  GetMem(FBlock, Length(FBytes));
+  FFreeMem := True;
+  GetMem(Ptr, Length(FBytes));
+  Compile(Ptr);
+end;
+
+procedure TAsmBlock.Compile(const Target: Pointer);
+var
+  RelativeAddressFix: TRelativeAddressFix;
+  OffsetAddress: Pointer;
+  NextInstructionAddress: Integer;
+  Offset: Integer;
+begin
+  FBlock := Target;
   for RelativeAddressFix in FRelativeAddressFixes do
   begin
     OffsetAddress := Pointer(Integer(FBlock) + RelativeAddressFix.Position);
@@ -95,9 +110,12 @@ end;
 
 destructor TAsmBlock.Destroy;
 begin
-  Win32Check(VirtualProtect(FBlock, Length(FBytes), FOriginalProtectFlags,
-    FOriginalProtectFlags));
-  FreeMem(FBlock);
+  if FFreeMem then
+  begin
+    Win32Check(VirtualProtect(FBlock, Length(FBytes), FOriginalProtectFlags,
+      FOriginalProtectFlags));
+    FreeMem(FBlock);
+  end;
   inherited;
 end;
 

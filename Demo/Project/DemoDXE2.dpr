@@ -30,7 +30,8 @@ uses
   UTimeService in '..\Src\UTimeService.pas',
   UTimeSerivceImpl in '..\Src\UTimeSerivceImpl.pas',
   UGreetingService in '..\Src\UGreetingService.pas',
-  UGreetingServiceImpl in '..\Src\UGreetingServiceImpl.pas';
+  UGreetingServiceImpl in '..\Src\UGreetingServiceImpl.pas',
+  BeaEngineDelphi32 in '..\..\Src\BeaEngineDelphi32.pas';
 
 {$R *.res}
 

@@ -23,14 +23,14 @@ interface
 uses
   Rtti,
   TypInfo,
-  CodeHook,
-  CodeHookIntf,
   Emballo.Interfaces.InterfacedObject,
   Emballo.DynamicProxy.InterfaceProxy,
   Emballo.DynamicProxy.InvokationHandler,
   Emballo.DynamicProxy.MethodImpl,
   Emballo.RuntimeCodeGeneration.AsmBlock,
-  Emballo.SynteticClass, classes;
+  Emballo.SynteticClass,
+  BeaEngineDelphi32,
+  classes;
 
 type
   TNonVirtualMethodHookFilter = reference to procedure (const Method: TRttiMethod; var ShouldHook: Boolean);
@@ -49,7 +49,7 @@ type
     procedure GenerateNewDestroy;
     procedure OverrideVirtualMethods(const ParentClass: TClass);
     procedure HookNonVirtualMethods(const ParentClass: TClass; const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
-    function NVHook(AHandle: TCodeHookHandle; AParams: PCardinal): Cardinal;
+    procedure HookNonVirtualMethod(const Method: TRttiMethod);
   protected
     function QueryInterface(const IID: TGUID; out Obj): HRESULT; override; stdcall;
   public
@@ -65,6 +65,7 @@ implementation
 
 uses
   SysUtils,
+  Windows,
   Emballo.DynamicProxy.InvokationHandler.ParameterImpl,
   Emballo.RuntimeCodeGeneration.CallingConventions,
   Emballo.Rtti;
@@ -73,10 +74,6 @@ type
   TInterfacedObjectHack = class(TInterfacedObject)
 
   end;
-
-var
-  GCodeHook: ICodeHook;
-  GCodeHookHelper: ICodeHookHelper;
 
 { TDynamicProxy }
 
@@ -199,12 +196,6 @@ begin
   Free;
 end;
 
-function TDynamicProxy.NVHook(AHandle: TCodeHookHandle;
-  AParams: PCardinal): Cardinal;
-begin
-  FInvokationHandler(Nil, Nil, Nil);
-end;
-
 procedure TDynamicProxy.OverrideVirtualMethods(const ParentClass: TClass);
 var
   RttiType: TRttiType;
@@ -237,6 +228,33 @@ begin
     Result := E_NOINTERFACE;
 end;
 
+procedure TDynamicProxy.HookNonVirtualMethod(const Method: TRttiMethod);
+  function CalcRewriteSize: Integer;
+  var
+    Dis: TDISASM;
+  begin
+    FillChar(Dis, SizeOf(TDISASM), #0);
+    Dis.EIP := Integer(Method.CodeAddress);
+    while Result < 5 do
+      Inc(Result, Disasm(Dis));
+  end;
+var
+  RewriteSize: Integer;
+  OldProtect: Cardinal;
+  AsmBlock: TAsmBlock;
+
+begin
+  RewriteSize := CalcRewriteSize;
+  Win32Check(VirtualProtect(Method.CodeAddress, RewriteSize, PAGE_READWRITE, OldProtect));
+  try
+    FillChar(Method.CodeAddress^, RewriteSize, $90);
+
+    AsmBlock.pu
+  finally
+    Win32Check(VirtualProtect(Method.CodeAddress, RewriteSize, OldProtect, OldProtect));
+  end;
+end;
+
 procedure TDynamicProxy.HookNonVirtualMethods(const ParentClass: TClass;
   const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
 
@@ -248,26 +266,15 @@ procedure TDynamicProxy.HookNonVirtualMethods(const ParentClass: TClass;
   end;
 
 var
-  H: TCodeHookHandle;
   RttiType: TRttiType;
   Method: TRttiMethod;
 begin
   RttiType := FRttiContext.GetType(ParentClass);
 //  GCodeHook.SetUserDataSize(SizeOf(TMyUserData));
   for Method in RttiType.GetMethods do
-  begin
-    GCodeHookHelper.SetCallingConvention(HCC_REGISTER, HCC_REGISTER);
-    if (Method.DispatchKind = dkStatic) and ShouldHook(Method) then
-      GCodeHookHelper.HookWithObjectMethod(Self, Self, FRttiContext.GetType(ParentClass).GetMethod(Method.Name).CodeAddress, @TDynamicProxy.NVHook, 1, 0);
-  end;
+    HookNonVirtualMethod(Method);
 //  PMyUserData(GCodeHook.GetUserData(H))^.Msg := 'This is user data';
 //  lObjTarget.TestTarget('This is a test', 3);
 end;
-
-initialization
-GCodeHook := GetCodeHookIntf;
-//InitCodeHookDLL('CHook.dll');
-//GetCodeHook(GCodeHook);
-GCodeHook.GetCodeHookHelper(GCodeHookHelper);
 
 end.

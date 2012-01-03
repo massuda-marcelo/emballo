@@ -94,7 +94,7 @@ begin
   FExpectedCalls := TList<TExpectedMethodCall>.Create;
 
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
 
   begin
     case FState of

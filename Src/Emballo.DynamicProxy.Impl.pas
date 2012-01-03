@@ -143,9 +143,9 @@ constructor TDynamicProxy.Create(const ParentClass: TClass;
   const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
 begin
   Create(ParentClass, ImplementedInterfaces, procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
-    InvokationHandler(Method, Parameters, Result);
+    InvokationHandler(Method, Self, Parameters, Result);
   end,
   NonVirtualHookFilter);
 end;

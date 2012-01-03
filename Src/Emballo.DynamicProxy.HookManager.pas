@@ -48,9 +48,9 @@ var
   i: Integer;
 begin
   Handler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
-    InvokationHandler(Method, Parameters, Result);
+    InvokationHandler(Method, Self, Parameters, Result);
   end;
 
   Rec.MethodImpl := TMethodImpl.Create(RttiContext, Method, Handler);

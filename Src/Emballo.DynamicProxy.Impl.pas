@@ -49,7 +49,6 @@ type
     procedure GenerateNewDestroy;
     procedure OverrideVirtualMethods(const ParentClass: TClass);
     procedure HookNonVirtualMethods(const ParentClass: TClass; const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
-    procedure HookNonVirtualMethod(const Method: TRttiMethod);
   protected
     function QueryInterface(const IID: TGUID; out Obj): HRESULT; override; stdcall;
   public
@@ -66,6 +65,7 @@ implementation
 uses
   SysUtils,
   Windows,
+  Emballo.DynamicProxy.HookManager,
   Emballo.DynamicProxy.InvokationHandler.ParameterImpl,
   Emballo.RuntimeCodeGeneration.CallingConventions,
   Emballo.Rtti;
@@ -228,64 +228,6 @@ begin
     Result := E_NOINTERFACE;
 end;
 
-procedure TDynamicProxy.HookNonVirtualMethod(const Method: TRttiMethod);
-  function GetAddress(Dis: TDISASM): Pointer;
-  var
-    Str: AnsiString;
-  begin
-    Str := Trim(AnsiString(Dis.Argument1.ArgMnemonic));
-    SetLength(Str, Length(Str) - 1); // Remove the 'h' suffix
-    Result := Pointer(StrToInt('$' + Str));
-  end;
-var
-  OldProtect: Cardinal;
-  Stub: TAsmBlock;
-  RewroteCode: TAsmBlock;
-  Dis: TDISASM;
-  InstructionLength: Integer;
-  Byte: PByte;
-  i: Integer;
-  CopiedLength: Integer;
-  Instruction: AnsiString;
-begin
-  Stub := TAsmBlock.Create;
-  FillChar(Dis, SizeOf(TDISASM), #0);
-  Dis.EIP := Integer(Method.CodeAddress);
-  while Stub.Size < 5 do
-  begin
-    InstructionLength := Disasm(Dis);
-    Instruction := Trim(AnsiString(Dis.Instruction.Mnemonic));
-    if Instruction = 'call' then
-      Stub.GenCall(GetAddress(Dis))
-    else if Instruction = 'jmp' then
-      Stub.GenJmp(GetAddress(Dis))
-    else
-    begin
-      Byte := PByte(Dis.EIP);
-      for i := 1 to InstructionLength do
-      begin
-        Stub.PutB(Byte^);
-        Inc(Byte);
-      end;
-    end;
-    Inc(Dis.EIP, InstructionLength);
-  end;
-  CopiedLength := Stub.Size;
-  Stub.GenJmp(Pointer(Dis.EIP));
-  Stub.Compile;
-
-  RewroteCode := TAsmBlock.Create;
-
-  Win32Check(VirtualProtect(Method.CodeAddress, CopiedLength, PAGE_READWRITE, OldProtect));
-  try
-    FillChar(Method.CodeAddress^, CopiedLength, $90);
-    RewroteCode.GenJmp(Stub.Block);
-    RewroteCode.Compile(Method.CodeAddress);
-  finally
-    Win32Check(VirtualProtect(Method.CodeAddress, CopiedLength, OldProtect, OldProtect));
-  end;
-end;
-
 procedure TDynamicProxy.HookNonVirtualMethods(const ParentClass: TClass;
   const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
 
@@ -303,7 +245,7 @@ begin
   RttiType := FRttiContext.GetType(ParentClass);
   for Method in RttiType.GetMethods do
     if (Method.DispatchKind = dkStatic) and ShouldHook(Method) then
-      HookNonVirtualMethod(Method);
+      HookMethod(FRttiContext, FProxyObject, Method, FInvokationHandler);
 end;
 
 end.

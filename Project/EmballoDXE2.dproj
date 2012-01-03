@@ -130,6 +130,7 @@
 			<DCCReference Include="..\Src\Emballo.DI.pas"/>
 			<DCCReference Include="..\Src\Emballo.DI.DefaultBindings.pas"/>
 			<DCCReference Include="..\Src\Emballo.Services.pas"/>
+			<DCCReference Include="..\Src\Emballo.DynamicProxy.HookManager.pas"/>
 			<None Include="..\Src\Emballo.TypeWrappers.TypeWrapperInterfaceTemplate.inc"/>
 			<BuildConfiguration Include="Debug">
 				<Key>Cfg_2</Key>

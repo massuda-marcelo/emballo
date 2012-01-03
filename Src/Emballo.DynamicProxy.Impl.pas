@@ -229,29 +229,60 @@ begin
 end;
 
 procedure TDynamicProxy.HookNonVirtualMethod(const Method: TRttiMethod);
-  function CalcRewriteSize: Integer;
+  function GetAddress(Dis: TDISASM): Pointer;
   var
-    Dis: TDISASM;
+    Str: AnsiString;
   begin
-    FillChar(Dis, SizeOf(TDISASM), #0);
-    Dis.EIP := Integer(Method.CodeAddress);
-    while Result < 5 do
-      Inc(Result, Disasm(Dis));
+    Str := Trim(AnsiString(Dis.Argument1.ArgMnemonic));
+    SetLength(Str, Length(Str) - 1); // Remove the 'h' suffix
+    Result := Pointer(StrToInt('$' + Str));
   end;
 var
-  RewriteSize: Integer;
   OldProtect: Cardinal;
-  AsmBlock: TAsmBlock;
-
+  Stub: TAsmBlock;
+  RewroteCode: TAsmBlock;
+  Dis: TDISASM;
+  InstructionLength: Integer;
+  Byte: PByte;
+  i: Integer;
+  CopiedLength: Integer;
+  Instruction: AnsiString;
 begin
-  RewriteSize := CalcRewriteSize;
-  Win32Check(VirtualProtect(Method.CodeAddress, RewriteSize, PAGE_READWRITE, OldProtect));
-  try
-    FillChar(Method.CodeAddress^, RewriteSize, $90);
+  Stub := TAsmBlock.Create;
+  FillChar(Dis, SizeOf(TDISASM), #0);
+  Dis.EIP := Integer(Method.CodeAddress);
+  while Stub.Size < 5 do
+  begin
+    InstructionLength := Disasm(Dis);
+    Instruction := Trim(AnsiString(Dis.Instruction.Mnemonic));
+    if Instruction = 'call' then
+      Stub.GenCall(GetAddress(Dis))
+    else if Instruction = 'jmp' then
+      Stub.GenJmp(GetAddress(Dis))
+    else
+    begin
+      Byte := PByte(Dis.EIP);
+      for i := 1 to InstructionLength do
+      begin
+        Stub.PutB(Byte^);
+        Inc(Byte);
+      end;
+    end;
+    Inc(Dis.EIP, InstructionLength);
+  end;
+  CopiedLength := Stub.Size;
+  Stub.GenJmp(Pointer(Dis.EIP));
+  Stub.Compile;
 
-    AsmBlock.pu
+  RewroteCode := TAsmBlock.Create;
+
+  Win32Check(VirtualProtect(Method.CodeAddress, CopiedLength, PAGE_READWRITE, OldProtect));
+  try
+    FillChar(Method.CodeAddress^, CopiedLength, $90);
+    RewroteCode.GenJmp(Stub.Block);
+    RewroteCode.Compile(Method.CodeAddress);
   finally
-    Win32Check(VirtualProtect(Method.CodeAddress, RewriteSize, OldProtect, OldProtect));
+    Win32Check(VirtualProtect(Method.CodeAddress, CopiedLength, OldProtect, OldProtect));
   end;
 end;
 
@@ -272,7 +303,8 @@ begin
   RttiType := FRttiContext.GetType(ParentClass);
 //  GCodeHook.SetUserDataSize(SizeOf(TMyUserData));
   for Method in RttiType.GetMethods do
-    HookNonVirtualMethod(Method);
+    if (Method.DispatchKind = dkStatic) and ShouldHook(Method) then
+      HookNonVirtualMethod(Method);
 //  PMyUserData(GCodeHook.GetUserData(H))^.Msg := 'This is user data';
 //  lObjTarget.TestTarget('This is a test', 3);
 end;

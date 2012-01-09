@@ -40,7 +40,9 @@ type
     function IntegerResult: Integer; pascal;
     function DoubleResult: Double; pascal;
     procedure OutStringParameter(out S: String); pascal;
+    procedure ConstStringParameter(const S: String); pascal;
     function FunctionWithStringResult: String; pascal;
+    function TDateTimeMethod(A: TDateTime; out B: TDateTime): TDateTime; pascal;
   end;
 
   TMethodImplTests_Pascal = class(TTestCase)
@@ -58,9 +60,15 @@ type
     procedure TestDoubleResult;
     procedure TestOutStringParameter;
     procedure TestFunctionWithStringResult;
+    procedure TestConstStringParameter;
+    procedure TestTDateTime;
+    procedure TestSelf;
   end;
 
 implementation
+
+uses
+  DateUtils;
 
 { TMethodImplTests_Pascal }
 
@@ -83,6 +91,28 @@ begin
   FRttiContext.Free;
 end;
 
+procedure TMethodImplTests_Pascal.TestConstStringParameter;
+var
+  MethodImpl: TMethodImpl;
+  M: procedure(const Str: String) of object; pascal;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+begin
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
+  begin
+    CheckEquals('Test', Parameters[0].AsString);
+  end;
+
+  MethodImpl := GetMethod('ConstStringParameter', Invokationhandler);
+  try
+    TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
+    M('Test');
+  finally
+    MethodImpl.Free;
+  end;
+end;
+
 procedure TMethodImplTests_Pascal.TestDoubleResult;
 var
   MethodImpl: TMethodImpl;
@@ -99,6 +129,7 @@ begin
   MethodImpl := GetMethod('DoubleResult', Invokationhandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     ReturnValue := M;
 
     CheckEquals(3.14, ReturnValue, 0.001, 'Shoult capture method return value');
@@ -123,6 +154,7 @@ begin
   MethodImpl := GetMethod('FunctionWithStringResult', InvokationHandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     ReturnValue := M;
     CheckEquals('Test', ReturnValue, 'Should capture method return value');
   finally
@@ -146,6 +178,7 @@ begin
   MethodImpl := GetMethod('IntegerResult', InvokationHandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     ReturnValue := M;
     CheckEquals(20, ReturnValue, 'Should capture method return value');
   finally
@@ -169,8 +202,70 @@ begin
   MethodImpl := GetMethod('OutStringParameter', InvokationHandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     M(Str);
     CheckEquals('Test', Str);
+  finally
+    MethodImpl.Free;
+  end;
+end;
+
+procedure TMethodImplTests_Pascal.TestSelf;
+var
+  MethodImpl: TMethodImpl;
+  M: function: Integer of object; pascal;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+  Obj: TTestClass;
+begin
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
+  begin
+    CheckTrue(Obj = Self.AsObject);
+  end;
+
+  MethodImpl := GetMethod('IntegerResult', InvokationHandler);
+  try
+    Obj := TTestClass.Create;
+    try
+      TMethod(M).Code := MethodImpl.CodeAddress;
+      TMethod(M).Data := Obj;
+      M;
+    finally
+      Obj.Free;
+    end;
+  finally
+    MethodImpl.Free;
+  end;
+end;
+
+procedure TMethodImplTests_Pascal.TestTDateTime;
+var
+  MethodImpl: TMethodImpl;
+  M: function(A: TDateTime; out B: TDateTime): TDateTime of object; pascal;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+  Aux: TDateTime;
+  ResultDateTime: TDateTime;
+begin
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
+  begin
+    try
+      CheckTrue(SameDateTime(Parameters[0].AsDateTime, EncodeDateTime(2011, 6, 24, 16, 3, 1, 2)));
+      Parameters[1].AsDateTime := EncodeDateTime(2011, 6, 24, 16, 5, 3, 4);
+      Result.AsDateTime := EncodeDateTime(2011, 6, 24, 16, 6, 5, 6);
+    except
+      on EParameterReadOnly do CheckTrue(True);
+    end;
+  end;
+
+  MethodImpl := GetMethod('TDateTimeMethod', InvokationHandler);
+  try
+    TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
+    ResultDateTime := M(EncodeDateTime(2011, 6, 24, 16, 3, 1, 2), Aux);
+
+    CheckTrue(SameDateTime(Aux, EncodeDateTime(2011, 6, 24, 16, 5, 3, 4)), 'Error returning TDateTime via out parameter');
+    CheckTrue(SameDateTime(ResultDateTime, EncodeDateTime(2011, 6, 24, 16, 6, 5, 6)), 'Error returning TDateTime via method result');
   finally
     MethodImpl.Free;
   end;
@@ -196,6 +291,7 @@ begin
   MethodImpl := GetMethod('ConstDoubleParam', InvokationHandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     M(0);
   finally
     MethodImpl.Free;
@@ -206,6 +302,11 @@ end;
 
 procedure TTestClass.ConstDoubleParam(const A: Double);
 begin
+end;
+
+procedure TTestClass.ConstStringParameter(const S: String);
+begin
+
 end;
 
 function TTestClass.DoubleResult: Double;
@@ -224,6 +325,11 @@ begin
 end;
 
 procedure TTestClass.OutStringParameter(out S: String);
+begin
+
+end;
+
+function TTestClass.TDateTimeMethod(A: TDateTime; out B: TDateTime): TDateTime;
 begin
 
 end;

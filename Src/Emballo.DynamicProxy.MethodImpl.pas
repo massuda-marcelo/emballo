@@ -87,6 +87,7 @@ var
   Params: TArray<IParameter>;
   i: Integer;
   Result: IParameter;
+  LSelf: TValue;
 begin
   InvokationInfo := TMethodInvokationInfo.Create(FMethod);
   try
@@ -106,7 +107,8 @@ begin
     InvokationInfo.Free;
   end;
 
-  FInvokationHandler(FMethod, Nil, Params, Result);
+  TValue.Make(Eax, FMethod.Parent.Handle, LSelf);
+  FInvokationHandler(FMethod, LSelf, Params, Result);
 end;
 
 constructor TMethodImpl.Create(const RttiContext: TRttiContext; const Method: TRttiMethod;

@@ -42,9 +42,10 @@ type
     procedure OutStringParameter(out S: String); cdecl;
     procedure ConstStringParameter(const S: String); cdecl;
     function FunctionWithStringResult: String; cdecl;
+    function TDateTimeMethod(A: TDateTime; out B: TDateTime): TDateTime; cdecl;
   end;
 
-  TMethodImplTests_cdecl = class(TTestCase)
+  TMethodImplTests_Cdecl = class(TTestCase)
   private
     FRttiContext: TRttiContext;
     FRttiType: TRttiType;
@@ -60,32 +61,37 @@ type
     procedure TestOutStringParameter;
     procedure TestFunctionWithStringResult;
     procedure TestConstStringParameter;
+    procedure TestTDateTime;
+    procedure TestSelf;
   end;
 
 implementation
 
-{ TMethodImplTests_cdecl }
+uses
+  DateUtils;
 
-function TMethodImplTests_cdecl.GetMethod(const Name: String;
+{ TMethodImplTests_Cdecl }
+
+function TMethodImplTests_Cdecl.GetMethod(const Name: String;
   const InvokationHandler: TInvokationHandlerAnonMethod): TMethodImpl;
 begin
   Result := TMethodImpl.Create(FRttiContext, FRttiType.GetMethod(Name), InvokationHandler);
 end;
 
-procedure TMethodImplTests_cdecl.SetUp;
+procedure TMethodImplTests_Cdecl.SetUp;
 begin
   inherited;
   FRttiContext := TRttiContext.Create;
   FRttiType := FRttiContext.GetType(TTestClass);
 end;
 
-procedure TMethodImplTests_cdecl.TearDown;
+procedure TMethodImplTests_Cdecl.TearDown;
 begin
   inherited;
   FRttiContext.Free;
 end;
 
-procedure TMethodImplTests_cdecl.TestConstStringParameter;
+procedure TMethodImplTests_Cdecl.TestConstStringParameter;
 var
   MethodImpl: TMethodImpl;
   M: procedure(const Str: String) of object; cdecl;
@@ -100,13 +106,14 @@ begin
   MethodImpl := GetMethod('ConstStringParameter', Invokationhandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     M('Test');
   finally
     MethodImpl.Free;
   end;
 end;
 
-procedure TMethodImplTests_cdecl.TestDoubleResult;
+procedure TMethodImplTests_Cdecl.TestDoubleResult;
 var
   MethodImpl: TMethodImpl;
   M: function: Double of object; cdecl;
@@ -122,6 +129,7 @@ begin
   MethodImpl := GetMethod('DoubleResult', Invokationhandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     ReturnValue := M;
 
     CheckEquals(3.14, ReturnValue, 0.001, 'Shoult capture method return value');
@@ -130,7 +138,7 @@ begin
   end;
 end;
 
-procedure TMethodImplTests_cdecl.TestFunctionWithStringResult;
+procedure TMethodImplTests_Cdecl.TestFunctionWithStringResult;
 var
   MethodImpl: TMethodImpl;
   M: function: String of object; cdecl;
@@ -146,6 +154,7 @@ begin
   MethodImpl := GetMethod('FunctionWithStringResult', InvokationHandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     ReturnValue := M;
     CheckEquals('Test', ReturnValue, 'Should capture method return value');
   finally
@@ -153,7 +162,7 @@ begin
   end;
 end;
 
-procedure TMethodImplTests_cdecl.TestIntegerResult;
+procedure TMethodImplTests_Cdecl.TestIntegerResult;
 var
   MethodImpl: TMethodImpl;
   M: function: Integer of object; cdecl;
@@ -169,6 +178,7 @@ begin
   MethodImpl := GetMethod('IntegerResult', InvokationHandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     ReturnValue := M;
     CheckEquals(20, ReturnValue, 'Should capture method return value');
   finally
@@ -176,7 +186,7 @@ begin
   end;
 end;
 
-procedure TMethodImplTests_cdecl.TestOutStringParameter;
+procedure TMethodImplTests_Cdecl.TestOutStringParameter;
 var
   MethodImpl: TMethodImpl;
   M: procedure(out S: String) of object; cdecl;
@@ -192,6 +202,7 @@ begin
   MethodImpl := GetMethod('OutStringParameter', InvokationHandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     M(Str);
     CheckEquals('Test', Str);
   finally
@@ -199,7 +210,68 @@ begin
   end;
 end;
 
-procedure TMethodImplTests_cdecl.ConstParametersShouldBeReadOnly;
+procedure TMethodImplTests_Cdecl.TestSelf;
+var
+  MethodImpl: TMethodImpl;
+  M: function: Integer of object; cdecl;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+  Obj: TTestClass;
+begin
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
+  begin
+    CheckTrue(Obj = Self.AsObject);
+  end;
+
+  MethodImpl := GetMethod('IntegerResult', InvokationHandler);
+  try
+    Obj := TTestClass.Create;
+    try
+      TMethod(M).Code := MethodImpl.CodeAddress;
+      TMethod(M).Data := Obj;
+      M;
+    finally
+      Obj.Free;
+    end;
+  finally
+    MethodImpl.Free;
+  end;
+end;
+
+procedure TMethodImplTests_Cdecl.TestTDateTime;
+var
+  MethodImpl: TMethodImpl;
+  M: function(A: TDateTime; out B: TDateTime): TDateTime of object; cdecl;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+  Aux: TDateTime;
+  ResultDateTime: TDateTime;
+begin
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
+  begin
+    try
+      CheckTrue(SameDateTime(Parameters[0].AsDateTime, EncodeDateTime(2011, 6, 24, 16, 3, 1, 2)));
+      Parameters[1].AsDateTime := EncodeDateTime(2011, 6, 24, 16, 5, 3, 4);
+      Result.AsDateTime := EncodeDateTime(2011, 6, 24, 16, 6, 5, 6);
+    except
+      on EParameterReadOnly do CheckTrue(True);
+    end;
+  end;
+
+  MethodImpl := GetMethod('TDateTimeMethod', InvokationHandler);
+  try
+    TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
+    ResultDateTime := M(EncodeDateTime(2011, 6, 24, 16, 3, 1, 2), Aux);
+
+    CheckTrue(SameDateTime(Aux, EncodeDateTime(2011, 6, 24, 16, 5, 3, 4)), 'Error returning TDateTime via out parameter');
+    CheckTrue(SameDateTime(ResultDateTime, EncodeDateTime(2011, 6, 24, 16, 6, 5, 6)), 'Error returning TDateTime via method result');
+  finally
+    MethodImpl.Free;
+  end;
+end;
+
+procedure TMethodImplTests_Cdecl.ConstParametersShouldBeReadOnly;
 var
   MethodImpl: TMethodImpl;
   M: procedure(const A: Double) of object; cdecl;
@@ -219,6 +291,7 @@ begin
   MethodImpl := GetMethod('ConstDoubleParam', InvokationHandler);
   try
     TMethod(M).Code := MethodImpl.CodeAddress;
+    TMethod(M).Data := Nil;
     M(0);
   finally
     MethodImpl.Free;
@@ -256,7 +329,12 @@ begin
 
 end;
 
+function TTestClass.TDateTimeMethod(A: TDateTime; out B: TDateTime): TDateTime;
+begin
+
+end;
+
 initialization
-RegisterTest('Emballo.DynamicProxy', TMethodImplTests_cdecl.Suite);
+RegisterTest('Emballo.DynamicProxy', TMethodImplTests_Cdecl.Suite);
 
 end.

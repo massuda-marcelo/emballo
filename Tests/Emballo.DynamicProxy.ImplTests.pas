@@ -46,6 +46,7 @@ type
     procedure InvokationHandlerShouldBeCalled;
     procedure TestInterfaceProxy;
     procedure VerifyCanCallInterfaceMethods;
+    procedure TestSelf;
   end;
 
   TDynamicProxyNonVirtualMethodsTests = class(TTestCase)
@@ -114,6 +115,27 @@ begin
   CheckTrue(Supports(P.ProxyObject, ITestInterface), 'The returned proxy should support the required interfaces');
 
   TestInterface := Nil;
+end;
+
+procedure TDynamicProxyTests.TestSelf;
+var
+  Proxy: TTestClass;
+  Intf: TArray<PTypeInfo>;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+  TestInterface: ITestInterface;
+  Called: Boolean;
+begin
+  Called := False;
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
+    begin
+      Called := True;
+      CheckEquals(Proxy, Self.AsObject);
+    end;
+
+  Proxy := NewProxy(TTestClass, InvokationHandler, Nil) as TTestClass;
+
+  Proxy.TestCaseA(0, 0);
 end;
 
 procedure TDynamicProxyTests.VerifyCanCallInterfaceMethods;

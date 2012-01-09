@@ -28,11 +28,13 @@ type
   published
     procedure ShouldMatchOnEqualValueInteger;
     procedure ShouldNotMatchOnDifferentValueInteger;
+    procedure TestDateTime;
   end;
 
 implementation
 
 uses
+  DateUtils,
   Emballo.Mock.EqualsParameterMatcher,
   Emballo.Mock.ParameterMatcher,
   Emballo.DynamicProxy.InvokationHandler;
@@ -55,6 +57,25 @@ type
     procedure SetAsDateTime(Value: TDateTime); virtual; abstract;
   public
     constructor Create(const Value: Integer);
+  end;
+
+  TFakeDateTimeParameter = class(TInterfacedObject, IParameter)
+  private
+    FValue: TDateTime;
+    function GetAsBoolean: Boolean; virtual; abstract;
+    function GetAsByte: Byte; virtual; abstract;
+    function GetAsDouble: Double; virtual; abstract;
+    function GetAsInteger: Integer; virtual; abstract;
+    function GetAsString: string; virtual; abstract;
+    procedure SetAsBoolean(Value: Boolean); virtual; abstract;
+    procedure SetAsByte(Value: Byte); virtual; abstract;
+    procedure SetAsDouble(Value: Double); virtual; abstract;
+    procedure SetAsInteger(Value: Integer); virtual; abstract;
+    procedure SetAsString(const Value: String); virtual; abstract;
+    function GetAsDateTime: TDateTime;
+    procedure SetAsDateTime(Value: TDateTime);
+  public
+    constructor Create(const Value: TDateTime);
   end;
 
 { TEqualsParameterMatcherTests }
@@ -83,6 +104,16 @@ begin
   CheckFalse(Matcher.Match(P));
 end;
 
+procedure TEqualsParameterMatcherTests.TestDateTime;
+var
+  Matcher: IParameterMatcher;
+  P: IParameter;
+begin
+  Matcher := TEqualsParameterMatcher<TDateTime>.Create(EncodeDateTime(2011, 9, 5, 20, 27, 11, 12));
+  P := TFakeDateTimeParameter.Create(EncodeDateTime(2011, 9, 5, 20, 27, 11, 12));
+  CheckTrue(Matcher.Match(P));
+end;
+
 { TFakeIntegerParameter }
 
 constructor TFakeIntegerParameter.Create(const Value: Integer);
@@ -96,6 +127,23 @@ begin
 end;
 
 procedure TFakeIntegerParameter.SetAsInteger(Value: Integer);
+begin
+  FValue := Value;
+end;
+
+{ TFakeDateTimeParameter }
+
+constructor TFakeDateTimeParameter.Create(const Value: TDateTime);
+begin
+  FValue := Value;
+end;
+
+function TFakeDateTimeParameter.GetAsDateTime: TDateTime;
+begin
+  Result := FValue;
+end;
+
+procedure TFakeDateTimeParameter.SetAsDateTime(Value: TDateTime);
 begin
   FValue := Value;
 end;

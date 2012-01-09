@@ -49,7 +49,6 @@
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
 			<DCC_MapFile>3</DCC_MapFile>
-			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
 			<DCC_BplOutput>..\Out\Debug</DCC_BplOutput>
 			<DCC_DependencyCheckOutputName>..\Out\Debug\Emballo.bpl</DCC_DependencyCheckOutputName>
 			<DCC_DcpOutput>..\Out\Debug</DCC_DcpOutput>
@@ -61,22 +60,10 @@
 			</DelphiCompile>
 			<DCCReference Include="rtl.dcp"/>
 			<DCCReference Include="dbrtl.dcp"/>
-			<DCCReference Include="..\Src\Emballo.DI.Core.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.Instantiator.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.Factory.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.DynamicFactory.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.Registry.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.PreBuiltFactory.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.AbstractFactory.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.AbstractWrapperFactory.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.SingletonFactory.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.PoolFactory.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.RegisterImpl.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.Register.pas"/>
+			<DCCReference Include="vcl.dcp"/>
 			<DCCReference Include="..\Src\Emballo.RuntimeCodeGeneration.AsmBlock.pas"/>
 			<DCCReference Include="..\Src\Emballo.DllWrapper.pas"/>
 			<DCCReference Include="..\Src\Emballo.DllWrapper.Impl.pas"/>
-			<DCCReference Include="..\Src\Emballo.DI.DllWrapperFactory.pas"/>
 			<DCCReference Include="..\Src\Emballo.Rtti.pas"/>
 			<DCCReference Include="..\Src\Emballo.DynamicProxy.Impl.pas"/>
 			<DCCReference Include="..\Src\Emballo.Interfaces.InterfacedObject.pas"/>
@@ -112,6 +99,8 @@
 			<DCCReference Include="..\Src\Emballo.Mock.EqualsParameterMatcher.pas"/>
 			<DCCReference Include="..\Src\Emballo.DynamicProxy.NativeToInvokationHandlerBridge.pas"/>
 			<DCCReference Include="..\Src\Emballo.RuntimeCodeGeneration.MethodInvokationInfo.pas"/>
+			<DCCReference Include="..\Src\Emballo.DI.pas"/>
+			<DCCReference Include="Emballo.DI.DefaultBindings.pas"/>
 			<None Include="..\Src\Emballo.TypeWrappers.TypeWrapperInterfaceTemplate.inc"/>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>

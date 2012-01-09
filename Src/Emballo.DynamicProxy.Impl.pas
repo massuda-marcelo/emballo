@@ -28,10 +28,13 @@ uses
   Emballo.DynamicProxy.InvokationHandler,
   Emballo.DynamicProxy.MethodImpl,
   Emballo.RuntimeCodeGeneration.AsmBlock,
-  Emballo.DI.Instantiator,
-  Emballo.SynteticClass, classes;
+  Emballo.SynteticClass,
+  BeaEngineDelphi32,
+  classes;
 
 type
+  TNonVirtualMethodHookFilter = reference to procedure (const Method: TRttiMethod; var ShouldHook: Boolean);
+
   TDynamicProxy = class(TEbInterfacedObject)
   private
     FInvokationHandler: TInvokationHandlerAnonMethod;
@@ -45,13 +48,14 @@ type
     procedure NewDestroy(Instance: TObject; Outermost: SmallInt);
     procedure GenerateNewDestroy;
     procedure OverrideVirtualMethods(const ParentClass: TClass);
+    procedure HookNonVirtualMethods(const ParentClass: TClass; const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
   protected
     function QueryInterface(const IID: TGUID; out Obj): HRESULT; override; stdcall;
   public
     constructor Create(const ParentClass: TClass; ImplementedInterfaces: TArray<PTypeInfo>;
-      InvokationHandler: TInvokationHandlerAnonMethod); overload;
+      InvokationHandler: TInvokationHandlerAnonMethod; const NonVirtualHookFilter: TNonVirtualMethodHookFilter); overload;
     constructor Create(const ParentClass: TClass; ImplementedInterfaces: TArray<PTypeInfo>;
-      InvokationHandler: TInvokationHandlerMethod); overload;
+      InvokationHandler: TInvokationHandlerMethod; const NonVirtualHookFilter: TNonVirtualMethodHookFilter); overload;
     destructor Destroy; override;
     property ProxyObject: TObject read FProxyObject;
   end;
@@ -60,7 +64,8 @@ implementation
 
 uses
   SysUtils,
-  Emballo.DI.AbstractFactory,
+  Windows,
+  Emballo.DynamicProxy.HookManager,
   Emballo.DynamicProxy.InvokationHandler.ParameterImpl,
   Emballo.RuntimeCodeGeneration.CallingConventions,
   Emballo.Rtti;
@@ -73,11 +78,11 @@ type
 { TDynamicProxy }
 
 constructor TDynamicProxy.Create(const ParentClass: TClass;
-  ImplementedInterfaces: TArray<PTypeInfo>; InvokationHandler: TInvokationHandlerAnonMethod);
+  ImplementedInterfaces: TArray<PTypeInfo>; InvokationHandler: TInvokationHandlerAnonMethod;
+  const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
 var
   i: Integer;
   LParentClass: TClass;
-  Instantiator: TInstantiator;
   ImplementedInterfacesGuids: TArray<TGUID>;
   IOffset: Integer;
   VTable: Pointer;
@@ -101,12 +106,7 @@ begin
   FSynteticClass := TSynteticClass.Create(LParentClass.ClassName, LParentClass,
     SizeOf(Pointer), ImplementedInterfacesGuids, True);
 
-  Instantiator := TInstantiator.Create;
-  try
-    FProxyObject := Instantiator.Instantiate(FSynteticClass.Metaclass);
-  finally
-    Instantiator.Free;
-  end;
+  FProxyObject := FSynteticClass.Metaclass.Create;
 
   SetAditionalData(FProxyObject, Self);
 
@@ -134,16 +134,20 @@ begin
 
     Move(VTable, Pointer(Integer(FProxyObject) + IOffset)^, SizeOf(Integer));
   end;
+
+  HookNonVirtualMethods(LParentClass, NonVirtualHookFilter);
 end;
 
 constructor TDynamicProxy.Create(const ParentClass: TClass;
-  ImplementedInterfaces: TArray<PTypeInfo>; InvokationHandler: TInvokationHandlerMethod);
+  ImplementedInterfaces: TArray<PTypeInfo>; InvokationHandler: TInvokationHandlerMethod;
+  const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
 begin
   Create(ParentClass, ImplementedInterfaces, procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
-    InvokationHandler(Method, Parameters, Result);
-  end);
+    InvokationHandler(Method, Self, Parameters, Result);
+  end,
+  NonVirtualHookFilter);
 end;
 
 destructor TDynamicProxy.Destroy;
@@ -222,6 +226,26 @@ begin
     Result := 0
   else
     Result := E_NOINTERFACE;
+end;
+
+procedure TDynamicProxy.HookNonVirtualMethods(const ParentClass: TClass;
+  const NonVirtualHookFilter: TNonVirtualMethodHookFilter);
+
+  function ShouldHook(const Method: TRttiMethod): Boolean;
+  begin
+    Result := False;
+    if Assigned(NonVirtualHookFilter) then
+      NonVirtualHookFilter(Method, Result);
+  end;
+
+var
+  RttiType: TRttiType;
+  Method: TRttiMethod;
+begin
+  RttiType := FRttiContext.GetType(ParentClass);
+  for Method in RttiType.GetMethods do
+    if (Method.DispatchKind = dkStatic) and ShouldHook(Method) then
+      HookMethod(FRttiContext, FProxyObject, Method, FInvokationHandler);
 end;
 
 end.

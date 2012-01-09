@@ -15,6 +15,9 @@
 			<Projects Include="..\Demo\Project\Demo.dproj">
 				<Dependencies/>
 			</Projects>
+			<Projects Include="..\Third\CodeHook\Sample\Delphi\CodeHookTest.dproj">
+				<Dependencies/>
+			</Projects>
 		</ItemGroup>
 		<ProjectExtensions>
 			<Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -59,14 +62,23 @@
 		<Target Name="Demo:Make">
 			<MSBuild Targets="Make" Projects="..\Demo\Project\Demo.dproj"/>
 		</Target>
+		<Target Name="CodeHookTest">
+			<MSBuild Projects="..\Third\CodeHook\Sample\Delphi\CodeHookTest.dproj"/>
+		</Target>
+		<Target Name="CodeHookTest:Clean">
+			<MSBuild Targets="Clean" Projects="..\Third\CodeHook\Sample\Delphi\CodeHookTest.dproj"/>
+		</Target>
+		<Target Name="CodeHookTest:Make">
+			<MSBuild Targets="Make" Projects="..\Third\CodeHook\Sample\Delphi\CodeHookTest.dproj"/>
+		</Target>
 		<Target Name="Build">
-			<CallTarget Targets="DllWrapperTest;Emballo;EmballoTests;Demo"/>
+			<CallTarget Targets="DllWrapperTest;Emballo;EmballoTests;Demo;CodeHookTest"/>
 		</Target>
 		<Target Name="Clean">
-			<CallTarget Targets="DllWrapperTest:Clean;Emballo:Clean;EmballoTests:Clean;Demo:Clean"/>
+			<CallTarget Targets="DllWrapperTest:Clean;Emballo:Clean;EmballoTests:Clean;Demo:Clean;CodeHookTest:Clean"/>
 		</Target>
 		<Target Name="Make">
-			<CallTarget Targets="DllWrapperTest:Make;Emballo:Make;EmballoTests:Make;Demo:Make"/>
+			<CallTarget Targets="DllWrapperTest:Make;Emballo:Make;EmballoTests:Make;Demo:Make;CodeHookTest:Make"/>
 		</Target>
 		<Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 	</Project>

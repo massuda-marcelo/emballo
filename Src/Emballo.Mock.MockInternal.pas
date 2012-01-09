@@ -27,7 +27,7 @@ uses
 type
   TExceptionClass = class of Exception;
 
-  IMockInternal<T:class> = interface
+  IMockInternal<T> = interface
     ['{34CB781C-7C84-47A7-B829-35D3AA6DE766}']
 
     function GetObject: T;
@@ -41,6 +41,7 @@ type
     function WillReturn(const Value: Integer): IWhen<T>; overload;
     function WillReturn(const Value: String): IWhen<T>; overload;
     function WillReturn(const Value: Boolean): IWhen<T>; overload;
+    function WillReturn(const Value: TDateTime): IWhen<T>; overload;
   end;
 
 implementation

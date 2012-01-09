@@ -18,6 +18,13 @@ type
     function FooWithBooleanReturn: Boolean; virtual;
   end;
 
+  {$M+}
+  IMockIntf = interface
+    ['{D57E62EE-85B0-4AD0-8F1D-9AD480DAA1B5}']
+    procedure Foo;
+  end;
+  {$M-}
+
   ETestException = class(Exception)
   end;
 
@@ -39,6 +46,16 @@ type
     procedure ShouldBeAbleToCastTheMockToTheMockedType;
     procedure ShouldReturnBooleanValue;
     procedure ShouldMatchStringArguments;
+  end;
+
+  TInterfaceMockTests = class(TTestCase)
+  private
+    FMock: TMock<IMockIntf>;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCallMethod;
   end;
 
 implementation
@@ -213,7 +230,28 @@ begin
 
 end;
 
+{ TInterfaceMockTests }
+
+procedure TInterfaceMockTests.SetUp;
+begin
+  inherited;
+  FMock := TMock<IMockIntf>.Create;
+end;
+
+procedure TInterfaceMockTests.TearDown;
+begin
+  inherited;
+
+end;
+
+procedure TInterfaceMockTests.TestCallMethod;
+begin
+  FMock.Expects.Foo;
+  FMock.GetObject.Foo;
+end;
+
 initialization
 RegisterTest('Emballo.Mock', TMockTests.Suite);
+RegisterTest('Emballo.Mock', TInterfaceMockTests.Suite);
 
 end.

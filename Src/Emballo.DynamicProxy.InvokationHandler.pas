@@ -25,10 +25,10 @@ uses
 
 type
   TInvokationHandlerAnonMethod = reference to procedure(const Method: TRttiMethod;
-    const Parameters: TArray<TValue>; out Result: TValue);
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter);
 
   TInvokationHandlerMethod = procedure(const Method: TRttiMethod;
-    const Parameters: TArray<TValue>; out Result: TValue) of object;
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter) of object;
 
 implementation
 

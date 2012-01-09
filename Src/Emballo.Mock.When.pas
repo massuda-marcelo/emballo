@@ -21,7 +21,7 @@ unit Emballo.Mock.When;
 interface
 
 type
-  IWhen<T:class> = interface
+  IWhen<T> = interface
     ['{57940452-B5E5-41FC-9B37-5237BA68BDB2}']
 
     function When: T;

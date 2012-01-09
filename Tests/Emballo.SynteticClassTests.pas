@@ -24,9 +24,36 @@ uses
   TestFramework;
 
 type
+  ISomeIntf = interface
+    ['{C24CC8B5-BBE9-48CC-80D4-0367451D7329}']
+    function GetX: Integer;
+    procedure SetX(const X: Integer);
+  end;
+
+  ISomeSubIntf = interface(ISomeIntf)
+    ['{74B68341-93F5-4625-AF92-4CFD3EA90E53}']
+  end;
+
+  TBaseClassWithIntf = class(TInterfacedObject, ISomeSubIntf)
+  private
+    FX: Integer;
+  public
+    function GetX: Integer;
+    procedure SetX(const X: Integer);
+  end;
+
   TBaseClass = class
     Test: Integer;
+  protected
+    function GetTest: Integer; virtual; abstract;
   end;
+
+  TConcreteClass = class(TBaseClass)
+  protected
+    function GetTest: Integer; override;
+  end;
+
+
 
   TSynteticClassTests = class(TTestCase)
   published
@@ -40,6 +67,11 @@ type
     procedure InterfaceTableIOffsetShouldBeSetCorrectlyWhenClassHasAditionalData;
     procedure AccessToAditionalInstanceDataShouldNotCorruptTheObject;
     procedure FreeSynteticClassWhenInstanceIsFreedIfOptionIsSet;
+    procedure TestAditionalData;
+    procedure TestSameTypeInfo;
+    procedure TestVTable;
+    procedure InterfacesImplementedOnBaseClass;
+    procedure CallAbstractMethodsOfSynteticClassInstance;
   end;
 
 implementation
@@ -64,6 +96,25 @@ begin
       AditionalInstanceData^ := 20;
 
       CheckEquals(10, Instance.Test);
+    finally
+      Instance.Free;
+    end;
+  finally
+    SynteticClass.Free;
+  end;
+end;
+
+procedure TSynteticClassTests.CallAbstractMethodsOfSynteticClassInstance;
+var
+  SynteticClass: TSynteticClass;
+  Instance: TBaseClass;
+begin
+  SynteticClass := TSynteticClass.Create('TSynteticSubClass', TConcreteClass, 0, Nil, False);
+  try
+    Instance := SynteticClass.Metaclass.Create as TBaseClass;
+    try
+      Instance.Test := 10;
+      CheckEquals(10, Instance.GetTest);
     finally
       Instance.Free;
     end;
@@ -127,6 +178,24 @@ begin
   SynteticClass := TSynteticClass.Create('TSynteticSubClass', TBaseClass, 0, Guids, False);
   try
     CheckEquals(TBaseClass.InstanceSize + 2*SizeOf(Pointer), SynteticClass.Metaclass.InstanceSize, 'SynteticClass'' Instance size should consider the aditional instance data size');
+  finally
+    SynteticClass.Free;
+  end;
+end;
+
+procedure TSynteticClassTests.InterfacesImplementedOnBaseClass;
+var
+  SynteticClass: TSynteticClass;
+  Inst: TObject;
+  Intf: ISomeSubIntf;
+begin
+  SynteticClass := TSynteticClass.Create('TSynteticSubClass', TBaseClassWithIntf, 0, Nil, False);
+  try
+    Inst := SynteticClass.Metaclass.Create;
+    Supports(Inst, ISomeSubIntf, Intf);
+    Intf.SetX(123);
+    CheckEquals(123, Intf.GetX);
+    Intf := Nil;
   finally
     SynteticClass.Free;
   end;
@@ -206,6 +275,64 @@ begin
   finally
     SynteticClass.Free;
   end;
+end;
+
+procedure TSynteticClassTests.TestAditionalData;
+var
+  SynteticClass: TSynteticClass;
+  Instance: TObject;
+  Value: Integer;
+begin
+  SynteticClass := TSynteticClass.Create('TSynteticSubClass', TBaseClass, SizeOf(Integer), Nil, False);
+  try
+    Instance := SynteticClass.Metaclass.Create;
+    try
+      Value := 20;
+      SetAditionalData(Instance, Value);
+      Value := PInteger(GetAditionalData(Instance))^;
+      CheckEquals(20, Value);
+    finally
+      Instance.Free;
+    end;
+  finally
+    SynteticClass.Free;
+  end;
+end;
+
+procedure TSynteticClassTests.TestSameTypeInfo;
+var
+  SynteticClass: TSynteticClass;
+begin
+  SynteticClass := TSynteticClass.Create('TSynteticSubClass', TBaseClass, 0, Nil, False);
+  try
+    CheckTrue(SynteticClass.Metaclass.ClassInfo = TBaseClass.ClassInfo);
+  finally
+    SynteticClass.Free;
+  end;
+end;
+
+procedure TSynteticClassTests.TestVTable;
+begin
+
+end;
+
+{ TBaseClassWithIntf }
+
+function TBaseClassWithIntf.GetX: Integer;
+begin
+  Result := FX;
+end;
+
+procedure TBaseClassWithIntf.SetX(const X: Integer);
+begin
+  FX := X;
+end;
+
+{ TConcreteClass }
+
+function TConcreteClass.GetTest: Integer;
+begin
+  Result := Test;
 end;
 
 initialization

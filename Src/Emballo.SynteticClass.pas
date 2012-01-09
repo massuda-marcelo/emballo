@@ -21,7 +21,7 @@ unit Emballo.SynteticClass;
 interface
 
 uses
-  Emballo.RuntimeCodeGeneration.AsmBlock;
+  Emballo.RuntimeCodeGeneration.AsmBlock, Rtti;
 
 type
   TInstanceFinalizer = reference to procedure(const Instance: TObject);
@@ -77,6 +77,8 @@ type
   { Manages a runtime-generated metaclass }
   TSynteticClass = class
   private
+    FContext: TRttiContext;
+    FRttiType: TRttiType;
     FClassName: ShortString;
     FClassRec: PSynteticClassRec;
     FFinalizer: TInstanceFinalizer;
@@ -86,7 +88,7 @@ type
     function GetMetaclass: TClass;
     function GetVirtualMethodAddress(const Index: Integer): Pointer;
     procedure SetVirtualMethodAddress(const Index: Integer; const Value: Pointer);
-    function EnumerateVirtualMethods(const ParentClass: TClass): TArray<TVmtEntry>;
+    function EnumerateVirtualMethods: TArray<TVmtEntry>;
     procedure CreateNewDestroy;
     procedure NewDestroy(Instance: TObject; OuterMost: ShortInt);
   public
@@ -110,7 +112,7 @@ procedure SetAditionalData(const Instance: TObject; const Data);
 implementation
 
 uses
-  Rtti, TypInfo, Generics.Defaults, Generics.Collections;
+  TypInfo, Generics.Defaults, Generics.Collections;
 
 function GetAditionalInstanceSize(const SynteticClass: TClass): Integer;
 var
@@ -125,6 +127,7 @@ function GetAditionalData(const Instance: TObject): Pointer;
 var
   Address: Integer;
 begin
+
   Address := Integer(Instance);
   Address := Address + Instance.InstanceSize;
 
@@ -156,10 +159,15 @@ var
   VmtEntries: TArray<TVmtEntry>;
   NumVmtEntries: Integer;
   i: Integer;
+  Size: Integer;
 begin
+  FContext := TRttiContext.Create;
+  FRttiType := FContext.GetType(Parent);
+
   FFreeOnInstanceDestroy := FreeOnInstanceDestroy;
-  VmtEntries := EnumerateVirtualMethods(Parent);
-  NumVmtEntries := VmtEntries[High(VmtEntries)].Index + 1;
+  VmtEntries := EnumerateVirtualMethods;
+//  NumVmtEntries :=  VmtEntries[High(VmtEntries)].Index + 1;
+  NumVmtEntries := FRttiType.AsInstance.VmtSize;
 
   ParentClassRec := PClassRec(Parent);
   Dec(ParentClassRec);
@@ -170,7 +178,7 @@ begin
 
   FClassRec.AdicionalInstanceSize := AditionalInstanceSize;
 
-  Move(ParentClassRec^, FClassRec.ClassRec, SizeOf(TClassRec));
+  Move(ParentClassRec^, FClassRec.ClassRec, SizeOf(TClassRec) + NumVmtEntries*SizeOf(Pointer));
   GetMem(FClassRec.ClassRec.Parent, SizeOf(Pointer));
   FClassRec.ClassRec.ClassName := @FClassName;
   FClassRec.ClassRec.InstanceSize := Parent.InstanceSize + AditionalInstanceSize +
@@ -225,35 +233,26 @@ begin
   if Assigned(FClassRec.ClassRec.IntfTable) then
     FreeMem(FClassRec.ClassRec.IntfTable);
   FreeMem(FClassRec);
+  FContext.Free;
   inherited;
 end;
 
-function TSynteticClass.EnumerateVirtualMethods(
-  const ParentClass: TClass): TArray<TVmtEntry>;
+function TSynteticClass.EnumerateVirtualMethods: TArray<TVmtEntry>;
 var
-  Ctx: TRttiContext;
-  RttiType: TRttiType;
   Methods: TArray<TRttiMethod>;
   Method: TRttiMethod;
 begin
   SetLength(Result, 0);
-  Ctx := TRttiContext.Create;
-  try
-    RttiType := Ctx.GetType(ParentClass);
+  Methods := FRttiType.GetMethods;
 
-    Methods := RttiType.GetMethods;
-
-    for Method in Methods do
+  for Method in Methods do
+  begin
+    if Method.DispatchKind = dkVtable then
     begin
-      if Method.DispatchKind = dkVtable then
-      begin
-        SetLength(Result, Length(Result) + 1);
-        Result[High(Result)].Index := Method.VirtualIndex;
-        Result[High(Result)].Address := Method.CodeAddress;
-      end;
+      SetLength(Result, Length(Result) + 1);
+      Result[High(Result)].Index := Method.VirtualIndex;
+      Result[High(Result)].Address := Method.CodeAddress;
     end;
-  finally
-    Ctx.Free;
   end;
 
   TArray.Sort<TVmtEntry>(Result, TComparer<TVmtEntry>.Construct(function(const Left, Right: TVmtEntry): Integer

@@ -106,7 +106,7 @@ begin
     InvokationInfo.Free;
   end;
 
-  FInvokationHandler(FMethod, Params, Result);
+  FInvokationHandler(FMethod, Nil, Params, Result);
 end;
 
 constructor TMethodImpl.Create(const RttiContext: TRttiContext; const Method: TRttiMethod;

@@ -29,6 +29,11 @@ type
     procedure TestCaseA(A: Byte; B: Integer); virtual; abstract;
   end;
 
+  TTestClassNonVirtual = class
+  public
+    function TestA(const X: Integer): Boolean;
+  end;
+
   {$M+}
   ITestInterface = interface
     ['{CC2E979B-2ACF-43AA-BEF2-536DCCA1A7A5}']
@@ -43,18 +48,25 @@ type
     procedure VerifyCanCallInterfaceMethods;
   end;
 
+  TDynamicProxyNonVirtualMethodsTests = class(TTestCase)
+  published
+    procedure TestA;
+  end;
+
 implementation
 
 uses
   Rtti,
   TypInfo,
   SysUtils,
+  Emballo.General,
   Emballo.DynamicProxy.InvokationHandler,
   Emballo.DynamicProxy.Impl;
 
-function NewProxy(InvokationHandler: TInvokationHandlerAnonMethod): TTestClass;
+function NewProxy(const AClass: TClass; const InvokationHandler: TInvokationHandlerAnonMethod;
+  const NonVirtualHookFilter: TNonVirtualMethodHookFilter): TObject;
 begin
-  Result := TDynamicProxy.Create(TTestClass, Nil, InvokationHandler).ProxyObject as TTestClass;
+  Result := TDynamicProxy.Create(AClass, Nil, InvokationHandler, NonVirtualHookFilter).ProxyObject;
 end;
 
 { TDynamicProxyTests }
@@ -66,12 +78,12 @@ var
   InvokationHandler: TInvokationHandlerAnonMethod;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
     begin
       Invoked := True;
     end;
 
-  Test := NewProxy(InvokationHandler);
+  Test := NewProxy(TTestClass, InvokationHandler, Nil) as TTestClass;
   try
     Invoked := False;
     Test.TestCaseA(0, 0);
@@ -89,13 +101,14 @@ var
   TestInterface: ITestInterface;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>;
+    const Result: IParameter)
     begin
     end;
 
   SetLength(Intf, 1);
   Intf[0] := TypeInfo(ITestInterface);
-  P := TDynamicProxy.Create(Nil, Intf, InvokationHandler);
+  P := TDynamicProxy.Create(Nil, Intf, InvokationHandler, Nil);
   P.ProxyObject.GetInterface(ITestInterface, TestInterface);
 
   CheckTrue(Supports(P.ProxyObject, ITestInterface), 'The returned proxy should support the required interfaces');
@@ -109,21 +122,66 @@ var
   Intf: TArray<PTypeInfo>;
   InvokationHandler: TInvokationHandlerAnonMethod;
   TestInterface: ITestInterface;
+  Called: Boolean;
 begin
+  Called := False;
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
     begin
+      Called := True;
     end;
 
   SetLength(Intf, 1);
   Intf[0] := TypeInfo(ITestInterface);
-  P := TDynamicProxy.Create(Nil, Intf, InvokationHandler);
+  P := TDynamicProxy.Create(Nil, Intf, InvokationHandler, Nil);
   Supports(P.ProxyObject, ITestInterface, TestInterface);
   TestInterface.Foo;
+  CheckTrue(Called);
+end;
+
+{ TTestClassNonVirtual }
+
+function TTestClassNonVirtual.TestA(const X: Integer): Boolean;
+begin
+  MakeMeGoodForHook;
+  Result := False;
+end;
+
+{ TDynamicProxyNonVirtualMethodsTests }
+
+procedure TDynamicProxyNonVirtualMethodsTests.TestA;
+var
+  Test: TTestClassNonVirtual;
+  Invoked: Boolean;
+  InvokationHandler: TInvokationHandlerAnonMethod;
+  Filter: TNonVirtualMethodHookFilter;
+  Result: Boolean;
+begin
+  InvokationHandler := procedure(const Method: TRttiMethod;
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
+    begin
+      Invoked := True;
+    end;
+
+  Filter := procedure(const Method: TRttiMethod; var ShouldHook: Boolean)
+  begin
+    if Method.Name = 'TestA' then
+      ShouldHook := True;
+  end;
+
+  Test := NewProxy(TTestClassNonVirtual, InvokationHandler, Filter) as TTestClassNonVirtual;
+  try
+    Invoked := False;
+    Result := Test.TestA(10);
+    CheckTrue(Invoked, 'The invokation handler should be called');
+  finally
+    Test.Free;
+  end;
 end;
 
 initialization
 RegisterTest('Emballo.DynamicProxy', TDynamicProxyTests.Suite);
+RegisterTest('Emballo.DynamicProxy', TDynamicProxyNonVirtualMethodsTests.Suite);
 
 end.
 

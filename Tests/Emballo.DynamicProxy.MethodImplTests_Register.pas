@@ -97,7 +97,7 @@ var
   InvokationHandler: TInvokationHandlerAnonMethod;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
     CheckEquals('Test', Parameters[0].AsString);
   end;
@@ -119,7 +119,7 @@ var
   ReturnValue: Double;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
     Result.AsDouble := 3.14;
   end;
@@ -143,7 +143,7 @@ var
   ReturnValue: String;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
     Result.AsString := 'Test';
   end;
@@ -166,7 +166,7 @@ var
   ReturnValue: Integer;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
     Result.AsInteger := 20;
   end;
@@ -189,7 +189,7 @@ var
   Str: String;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
     Parameters[0].AsString := 'Test';
   end;
@@ -213,7 +213,7 @@ var
   ResultDateTime: TDateTime;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
     try
       CheckTrue(SameDateTime(Parameters[0].AsDateTime, EncodeDateTime(2011, 6, 24, 16, 3, 1, 2)));
@@ -243,7 +243,7 @@ var
   InvokationHandler: TInvokationHandlerAnonMethod;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
   begin
     try
       Parameters[0].AsDouble := 10;

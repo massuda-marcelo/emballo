@@ -15,9 +15,6 @@
 			<Projects Include="EmballoTestsDXE2.dproj">
 				<Dependencies>EmballoDXE2.dproj;DllWrapperTestDXE2.dproj</Dependencies>
 			</Projects>
-			<Projects Include="..\Third\DisAsm32\Demo\DisAsmDemo.dproj">
-				<Dependencies/>
-			</Projects>
 		</ItemGroup>
 		<ProjectExtensions>
 			<Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -62,23 +59,14 @@
 		<Target Name="EmballoTestsDXE2:Make" DependsOnTargets="EmballoDXE2:Make;DllWrapperTestDXE2:Make">
 			<MSBuild Projects="EmballoTestsDXE2.dproj" Targets="Make"/>
 		</Target>
-		<Target Name="DisAsmDemo">
-			<MSBuild Projects="..\Third\DisAsm32\Demo\DisAsmDemo.dproj"/>
-		</Target>
-		<Target Name="DisAsmDemo:Clean">
-			<MSBuild Projects="..\Third\DisAsm32\Demo\DisAsmDemo.dproj" Targets="Clean"/>
-		</Target>
-		<Target Name="DisAsmDemo:Make">
-			<MSBuild Projects="..\Third\DisAsm32\Demo\DisAsmDemo.dproj" Targets="Make"/>
-		</Target>
 		<Target Name="Build">
-			<CallTarget Targets="DllWrapperTestDXE2;EmballoDXE2;DemoDXE2;EmballoTestsDXE2;DisAsmDemo"/>
+			<CallTarget Targets="DllWrapperTestDXE2;EmballoDXE2;DemoDXE2;EmballoTestsDXE2"/>
 		</Target>
 		<Target Name="Clean">
-			<CallTarget Targets="DllWrapperTestDXE2:Clean;EmballoDXE2:Clean;DemoDXE2:Clean;EmballoTestsDXE2:Clean;DisAsmDemo:Clean"/>
+			<CallTarget Targets="DllWrapperTestDXE2:Clean;EmballoDXE2:Clean;DemoDXE2:Clean;EmballoTestsDXE2:Clean"/>
 		</Target>
 		<Target Name="Make">
-			<CallTarget Targets="DllWrapperTestDXE2:Make;EmballoDXE2:Make;DemoDXE2:Make;EmballoTestsDXE2:Make;DisAsmDemo:Make"/>
+			<CallTarget Targets="DllWrapperTestDXE2:Make;EmballoDXE2:Make;DemoDXE2:Make;EmballoTestsDXE2:Make"/>
 		</Target>
 		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')" Project="$(BDS)\Bin\CodeGear.Group.Targets"/>
 	</Project>

@@ -53,10 +53,10 @@ type
   end;
 
   TInvokationHandlerAnonMethod = reference to procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter);
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter);
 
   TInvokationHandlerMethod = procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter) of object;
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter) of object;
 
 implementation
 

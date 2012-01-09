@@ -78,7 +78,7 @@ var
   InvokationHandler: TInvokationHandlerAnonMethod;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
     begin
       Invoked := True;
     end;
@@ -101,7 +101,8 @@ var
   TestInterface: ITestInterface;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>;
+    const Result: IParameter)
     begin
     end;
 
@@ -125,7 +126,7 @@ var
 begin
   Called := False;
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
     begin
       Called := True;
     end;
@@ -157,7 +158,7 @@ var
   Result: Boolean;
 begin
   InvokationHandler := procedure(const Method: TRttiMethod;
-    const Parameters: TArray<IParameter>; const Result: IParameter)
+    const Self: TValue; const Parameters: TArray<IParameter>; const Result: IParameter)
     begin
       Invoked := True;
     end;

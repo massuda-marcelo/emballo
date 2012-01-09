@@ -1,0 +1,8 @@
+syntax: glob
+
+*.local
+*.identcache
+*.drc
+DCU/
+Out/
+__history/

@@ -71,7 +71,10 @@ begin
     begin
       InstructionByte := PByte(Dis.EIP);
       for i := 1 to InstructionLength do
+      begin
         Rec.Stub.PutB(InstructionByte^);
+        Inc(InstructionByte);
+      end;
     end;
     Inc(Dis.EIP, InstructionLength);
     Inc(Rec.NumberOfBytesOverwritten, InstructionLength);

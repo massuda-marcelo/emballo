@@ -135,6 +135,7 @@ begin
   Intf[0] := TypeInfo(ITestInterface);
   P := TDynamicProxy.Create(Nil, Intf, InvokationHandler, Nil);
   Supports(P.ProxyObject, ITestInterface, TestInterface);
+  TestInterface._AddRef;
   TestInterface.Foo;
   CheckTrue(Called);
 end;

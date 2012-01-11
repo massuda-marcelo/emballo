@@ -107,7 +107,7 @@ begin
     InvokationInfo.Free;
   end;
 
-  TValue.Make(Eax, FMethod.Parent.Handle, LSelf);
+  TValue.Make(Eax, TypeInfo(TObject), LSelf);
   FInvokationHandler(FMethod, LSelf, Params, Result);
 end;
 

@@ -27,6 +27,7 @@ type
     procedure GenerateSelfParamInfo(const Method: TRttiMethod);
     procedure GenerateResultInfo(const Method: TRttiMethod);
     procedure GenerateParametersInfo(const Method: TRttiMethod);
+    procedure GenerateParametersInfoPascal(const Method: TRttiMethod);
     function GetParams(Index: Integer): TParamInfo;
     function GetParamCount: Integer;
   public
@@ -70,6 +71,8 @@ var
   CurrentLocation: TParamLocation;
   CurrentStackOffset: Integer;
   i: Integer;
+  StartIndex, EndIndex: Integer;
+  Straight: Boolean;
 begin
   SetLength(FParams, Length(Method.GetParameters));
 
@@ -83,9 +86,83 @@ begin
     CurrentLocation := plStack;
     CurrentStackOffset := SizeOf(Pointer); { Skip the implicit Self, that would
                                              be on offset 0 }
+
+    if Assigned(Method.ReturnType) then
+    begin
+      { If the result is a managed type, it is considered an out parameter,
+        so skip it }
+      if Method.ReturnType.IsManaged then
+        Inc(CurrentStackOffset, SizeOf(Pointer));
+    end;
   end;
 
-  for i := 0 to High(FParams) do
+  Straight := not (Method.CallingConvention in [ccPascal]);
+
+  if Straight then
+    i := 0
+  else
+    i := High(FParams);
+
+
+  while True do
+  begin
+    if Straight and (i > High(FParams)) then
+      Break
+    else if not Straight and (i < 0) then
+      Break;
+
+    FParams[i].ByValue := not (pfOut in Method.GetParameters[i].Flags);
+
+    if IsRegister(CurrentLocation) and (Method.GetParameters[i].ParamType.TypeSize > SizeOf(Pointer)) and FParams[i].ByValue then
+      FParams[i].Location := plStack
+    else
+    begin
+      FParams[i].Location := CurrentLocation;
+      if IsRegister(CurrentLocation) then
+        Inc(CurrentLocation);
+    end;
+
+    if FParams[i].Location = plStack then
+    begin
+      FParams[i].StackOffset := CurrentStackOffset;
+      if [pfVar, pfOut] * Method.GetParameters[i].Flags <> [] then
+        Inc(CurrentStackOffset, SizeOf(Pointer))
+      else
+        Inc(CurrentStackOffset, CountStackEntries(Method.GetParameters[i].ParamType)*SizeOf(Pointer));
+    end;
+
+  if Straight then
+    Inc(i)
+  else
+    Dec(i);
+  end;
+end;
+
+procedure TMethodInvokationInfo.GenerateParametersInfoPascal(
+  const Method: TRttiMethod);
+
+  function CountStackEntries(const ParamType: TRttiType): Integer;
+  begin
+    Result := Ceil(ParamType.TypeSize / SizeOf(Pointer));
+  end;
+
+  function IsRegister(const Location: TParamLocation): Boolean;
+  begin
+    Result := Location in [plEax, plEcx, plEdx];
+  end;
+
+var
+  CurrentLocation: TParamLocation;
+  CurrentStackOffset: Integer;
+  i: Integer;
+begin
+  SetLength(FParams, Length(Method.GetParameters));
+
+  CurrentLocation := plStack;
+  CurrentStackOffset := SizeOf(Pointer); { Skip the implicit Self, that would
+                                           be on offset 0 }
+
+  for i := High(FParams) downto 0 do
   begin
     FParams[i].ByValue := not (pfOut in Method.GetParameters[i].Flags);
 
@@ -101,6 +178,7 @@ begin
     if FParams[i].Location = plStack then
     begin
       FParams[i].StackOffset := CurrentStackOffset;
+
       Inc(CurrentStackOffset, CountStackEntries(Method.GetParameters[i].ParamType)*SizeOf(Pointer));
     end;
   end;
